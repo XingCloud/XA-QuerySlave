@@ -1,0 +1,3 @@
+[submodule "drill"]
+	path = drill
+	url = git@github.com:XingCloud/incubator-drill.git
