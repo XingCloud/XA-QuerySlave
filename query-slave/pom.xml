@@ -31,11 +31,11 @@
             <artifactId>plan-parser</artifactId>
             <version>0.1-SNAPSHOT</version>
         </dependency>
-        <dependency>
-            <groupId>query-parser</groupId>
-            <artifactId>query-parser</artifactId>
-            <version>0.1-SNAPSHOT</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>query-parser</groupId>-->
+            <!--<artifactId>query-parser</artifactId>-->
+            <!--<version>0.1-SNAPSHOT</version>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>org.apache.drill</groupId>
             <artifactId>common</artifactId>
@@ -60,6 +60,11 @@
             <artifactId>planner</artifactId>
             <groupId>org.apache.drill</groupId>
             <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.carrotsearch</groupId>
+            <artifactId>hppc</artifactId>
+            <version>0.4.2</version>
         </dependency>
     </dependencies>
 </project>
