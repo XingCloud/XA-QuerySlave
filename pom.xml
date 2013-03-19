@@ -11,6 +11,7 @@
         <module>drill/sandbox/plan-parser</module>
         <module>drill/sandbox/prototype</module>
         <module>drill/sandbox/query-parser</module>
+        <module>hbase-scanner</module>
         <module>query-slave</module>
     </modules>
 </project>

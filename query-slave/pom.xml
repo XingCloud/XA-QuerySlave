@@ -66,5 +66,11 @@
             <artifactId>hppc</artifactId>
             <version>0.4.2</version>
         </dependency>
+        <dependency>
+            <groupId>net.sf.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>0.8.0</version>
+        </dependency>
+
     </dependencies>
 </project>

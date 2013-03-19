@@ -1,11 +1,12 @@
 package com.xingcloud.xa.queryslave;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xingcloud.xa.queryslave.parser.AdhocSQLQueryVisitorImpl;
+import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.Select;
-import org.apache.drill.adhoc.AdhocSQLQueryVisitorImpl;
 import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.expression.FieldReference;
 import org.apache.drill.common.logical.LogicalPlan;
@@ -17,7 +18,6 @@ import org.apache.drill.exec.ref.RecordPointer;
 import org.apache.drill.exec.ref.ReferenceInterpreter;
 import org.apache.drill.exec.ref.RunOutcome;
 import org.apache.drill.exec.ref.eval.BasicEvaluatorFactory;
-import org.apache.drill.exec.ref.optimizer.LogicalPlanOptimizer;
 import org.apache.drill.exec.ref.rse.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.ArrayWritable;
