@@ -72,5 +72,11 @@
             <version>0.8.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.xingcloud.xa</groupId>
+            <artifactId>hbase-scanner</artifactId>
+            <version>1.0</version>
+        </dependency>
+
     </dependencies>
 </project>

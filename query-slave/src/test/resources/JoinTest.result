@@ -1,0 +1,22 @@
+"Breaking because no more records were found.\n"+
+    "{\n"+
+    "  \"departments\" : {\n"+
+    "    \"name\" : \"Sales\",\n"+
+    "    \"deptId\" : 31\n"+
+    "  },\n"+
+    "  \"employees\" : {\n"+
+    "    \"lastName\" : \"Rafferty\",\n"+
+    "    \"deptId\" : 31\n"+
+    "  }\n"+
+    "} \n"+
+    " {\n"+
+    "  \"departments\" : {\n"+
+    "    \"name\" : \"Engineering\",\n"+
+    "    \"deptId\" : 33\n"+
+    "  },\n"+
+    "  \"employees\" : {\n"+
+    "    \"lastName\" : \"Jones\",\n"+
+    "    \"deptId\" : 33\n"+
+    "  }\n"+
+    "} \n"+
+    "end output"

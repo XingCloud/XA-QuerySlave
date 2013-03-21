@@ -14,4 +14,99 @@
         <module>hbase-scanner</module>
         <module>query-slave</module>
     </modules>
+
+    <properties>
+        <dep.junit.version>4.11</dep.junit.version>
+        <dep.slf4j.version>1.7.2</dep.slf4j.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/mysql-connector-java-5.1.23-bin.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>hadoop-core</groupId>
+            <artifactId>hadoop-core</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/hadoop-core-0.20.2-cdh3u4.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>hadoop-lzo-0.4.15</groupId>
+            <artifactId>hadoop-lzo-0.4.15</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/hadoop-lzo-0.4.15.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>hbase</groupId>
+            <artifactId>hbase</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/hbase-0.94.0.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/zookeeper-3.4.3.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>guava-r09-jarjar</groupId>
+            <artifactId>guava-r09-jarjar</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/guava-r09-jarjar.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>13.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>commons-lang-2.5</groupId>
+            <artifactId>commons-lang-2.5</artifactId>
+            <version>xx</version>
+            <scope>system</scope>
+            <systemPath>/usr/java/xa-qs-lib/commons-lang-2.5.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${dep.slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <version>${dep.slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>${dep.slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>${dep.slf4j.version}</version>
+        </dependency>
+
+
+    </dependencies>
 </project>

@@ -70,35 +70,6 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
             logicalOperators.add(filter);
         }
 
-        //Get select item expressions && distinct
-        List<SelectItem> selectItems = plainSelect.getSelectItems();
-        Distinct distinct = null;
-        List<LogicalExpression> selectItemlogicalExpressions = new ArrayList<LogicalExpression>();
-        for(SelectItem selectItem : selectItems) {
-            AdhocSelectItemVisitorImpl selectItemVisitor = new AdhocSelectItemVisitorImpl();
-            selectItem.accept(selectItemVisitor);
-            LogicalExpression logicalExpression = selectItemVisitor.getLogicalExpr();
-            selectItemlogicalExpressions.add(logicalExpression);
-
-            //distinct
-            if (selectItemVisitor.isDistinct()) {
-                if (logicalExpression instanceof FieldReference) {
-                    distinct = new Distinct((FieldReference) logicalExpression);
-                } else if (logicalExpression instanceof FunctionCall) {
-                    FieldReference ref = (FieldReference)((FunctionCall) logicalExpression).args.get(0);
-                    distinct = new Distinct(ref);
-                }
-
-                if (filter != null) {
-                    distinct.setInput(filter);
-                } else {
-                    distinct.setInput(fromLop);
-                }
-
-                logicalOperators.add(distinct);
-            }
-        }
-
         //segment
         Segment segment = null;
         List<LogicalExpression> groupbyLogicalExpressions = new ArrayList<LogicalExpression>();
@@ -111,10 +82,8 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
             }
         }
         if (groupbyLogicalExpressions.size() != 0) {
-             segment = new Segment((LogicalExpression[])groupbyLogicalExpressions.toArray(), new FieldReference("segment"));
-            if (distinct != null) {
-                segment.setInput(distinct);
-            } else if (filter != null){
+             segment = new Segment(groupbyLogicalExpressions.toArray(new LogicalExpression[groupbyLogicalExpressions.size()]), new FieldReference("segment"));
+            if (filter != null){
                 segment.setInput(filter);
             } else {
                 segment.setInput(fromLop);
@@ -122,14 +91,49 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
             logicalOperators.add(segment);
         }
 
+        //distinct
+        List<SelectItem> selectItems = plainSelect.getSelectItems();
+        Distinct distinct = null;
+        List<LogicalExpression> selectItemlogicalExpressions = new ArrayList<LogicalExpression>();
+        for(SelectItem selectItem : selectItems) {
+          AdhocSelectItemVisitorImpl selectItemVisitor = new AdhocSelectItemVisitorImpl();
+          selectItem.accept(selectItemVisitor);
+          LogicalExpression logicalExpression = selectItemVisitor.getLogicalExpr();
+          selectItemlogicalExpressions.add(logicalExpression);
+
+          //distinct
+          if (selectItemVisitor.isDistinct()) {
+            FieldReference within = null;
+            if (segment != null){
+              within = new FieldReference("segment");
+            }
+            if (logicalExpression instanceof FieldReference) {
+              distinct = new Distinct(within, (FieldReference) logicalExpression);
+            } else if (logicalExpression instanceof FunctionCall) {
+              FieldReference ref = (FieldReference)((FunctionCall) logicalExpression).args.get(0);
+              distinct = new Distinct(within, ref);
+            }
+
+            if (segment !=null){
+              distinct.setInput(segment);
+            }else if (filter != null) {
+              distinct.setInput(filter);
+            } else {
+              distinct.setInput(fromLop);
+            }
+
+            logicalOperators.add(distinct);
+          }
+        }
+
         //collapsing aggregate
         selections = changeToNamedExpressions(selectItemlogicalExpressions);
         CollapsingAggregate collapsingAggregate = getCollapsingAggregate(selections, segment);
         if (collapsingAggregate!=null){
-            if(segment !=null){
-                collapsingAggregate.setInput(segment);
-            }else if (distinct !=null){
+            if(distinct !=null){
                 collapsingAggregate.setInput(distinct);
+            }else if (segment !=null){
+                collapsingAggregate.setInput(segment);
             }else if (filter !=null){
                 collapsingAggregate.setInput(filter);
             }else{
@@ -139,14 +143,14 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
         }
 //
 //
-//        //project
+        //project
         Project project =  null;
         if (collapsingAggregate == null) {
             project = new Project(changeToFieldRefOnly(selections)); //todo add output prefix
-            if(segment!=null){
+            if(distinct!=null){
+                project.setInput(distinct);
+            }else if (segment !=null){
                 project.setInput(segment);
-            }else if (distinct !=null){
-                collapsingAggregate.setInput(distinct);
             }else if (filter!=null){
                 project.setInput(filter);
             }else{
@@ -181,7 +185,12 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
             } else if (exprTmp instanceof FunctionCall){
                 LogicalExpression ref = ((FunctionCall) exprTmp).args.get(0);
                 String functionName = ((FunctionCall)exprTmp).getDefinition().getName();
-                FieldReference newFieldRef = new FieldReference(functionName+"."+((SchemaPath)ref).getPath());
+                FieldReference newFieldRef = null;
+                if (ref instanceof SchemaPath){
+                    newFieldRef = new FieldReference(functionName+"."+((SchemaPath)ref).getPath());
+                }else{
+                    newFieldRef = new FieldReference(functionName+"."+((ValueExpressions.LongExpression)ref).getLong());
+                }
                 NamedExpression namedExpression = new NamedExpression(exprTmp, newFieldRef);
                 namedExpressions.add(namedExpression);
             }
@@ -211,13 +220,15 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
         }
         FieldReference target = null;
         List<FieldReference> carryovers = new ArrayList<FieldReference>();
+        carryovers.add(new FieldReference("segmentvalue"));//wcl
         List<NamedExpression> _namedExpressions = new ArrayList<NamedExpression>();
 
         for (NamedExpression namedExpression : namedExpressions) {
             LogicalExpression expr = namedExpression.getExpr();
             if (expr instanceof FunctionCall) {
                 if (((FunctionCall) expr).getDefinition().getName().equals("count") ||
-                        ((FunctionCall) expr).getDefinition().getName().equals("sum")) {
+                        ((FunctionCall) expr).getDefinition().getName().equals("sum") ||
+                            ((FunctionCall) expr).getDefinition().getName().equals("countDistinct")){
                     _namedExpressions.add(namedExpression);
                 }
             } else{
@@ -235,8 +246,8 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
     private Store getStore(){
         try{
             ObjectMapper mapper = new ObjectMapper();
-            return new Store("console", mapper.readValue(new String("{\"pipe\":\"STD_OUT\"}").getBytes(),JSONOptions.class), null);
-            //return new Store("fs", mapper.readValue(new String("{\"file\":\"/home/hadoop/scan_result\", \"type\":\"JSON\"}").getBytes(),JSONOptions.class), null);
+            //return new Store("console", mapper.readValue(new String("{\"pipe\":\"STD_OUT\"}").getBytes(),JSONOptions.class), null);
+            return new Store("fs", mapper.readValue(new String("{\"file\":\"/home/hadoop/scan_result\", \"type\":\"JSON\"}").getBytes(),JSONOptions.class), null);
         }catch (Exception e){
             //todo wcl
             return null;

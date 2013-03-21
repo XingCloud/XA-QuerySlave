@@ -13,5 +13,5 @@ import java.io.IOException;
  * To change this template use File | Settings | File Templates.
  */
 public interface QuerySlaveProtocol {
-    public MapWritable query(String sql) throws IOException, JSQLParserException;
+    public MapWritable query(String sql) throws Exception;
 }

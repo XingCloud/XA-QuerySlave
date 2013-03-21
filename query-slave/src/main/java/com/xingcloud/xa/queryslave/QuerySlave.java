@@ -3,6 +3,10 @@ package com.xingcloud.xa.queryslave;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xingcloud.xa.queryslave.parser.AdhocSQLQueryVisitorImpl;
 import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
+import com.xingcloud.xa.queryslave.rse.HBaseRSE;
+import com.xingcloud.xa.queryslave.rse.MySQLRSE;
+import com.xingcloud.xa.queryslave.parser.PlanParser;
+
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.Statement;
@@ -45,46 +49,26 @@ public class QuerySlave implements QuerySlaveProtocol{
     static final Logger logger = LoggerFactory.getLogger(QuerySlave.class);
     private RPC.Server server;
 
-    public MapWritable query(String sql) throws IOException,JSQLParserException{
-        LogicalPlan logicalPlan = null;
-        DrillConfig config = DrillConfig.create();
-        CCJSqlParserManager pm = new CCJSqlParserManager();
-        Statement statement = pm.parse(new StringReader(sql));
-        if (statement instanceof Select) {
-            Select selectStatement  = (Select) statement;
-            AdhocSQLQueryVisitorImpl visitor = new AdhocSQLQueryVisitorImpl();
-            selectStatement.getSelectBody().accept(visitor);
-            List<LogicalOperator> logicalOperators = visitor.getLogicalOperators();
-            List<String> selections = visitor.getSelections();
+    public MapWritable query(String sql) throws Exception{
+        LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql);
+        if (logicalPlan == null){
+              DrillConfig config = DrillConfig.create();
+              IteratorRegistry ir = new IteratorRegistry();
+              ReferenceInterpreter i = new ReferenceInterpreter(LogicalPlanOptimizer.getInstance().optimize(logicalPlan), ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
+              i.setup();
+              Collection<RunOutcome> outcomes = i.run();
+              List<RecordPointer> records = i.getRecords().get(0);
+              MapWritable mapWritable = new MapWritable();
+              List<String> selections = PlanParser.getInstance().getSelections();
+              mapWritable.put(new Text("meta"),new ArrayWritable(selections.toArray(new String[selections.size()])));
+              mapWritable.put(new Text("size"),new Text(String.valueOf(records.size())));
+              for(RecordPointer recordPointer:records){
+                  mapWritable.put(new Text(String.valueOf(records.indexOf(recordPointer))), new ArrayWritable(changeToStringArray(recordPointer, selections)));
+              }
+              return mapWritable;
+          }
 
-            ObjectMapper mapper = new ObjectMapper();
-            PlanProperties head = mapper.readValue(new String("{\"type\":\"apache_drill_logical_plan\",\"version\":\"1\",\"generator\":{\"type\":\"manual\",\"info\":\"na\"}}").getBytes(), PlanProperties.class);
-
-            //List<StorageEngineConfig> storageEngines = mapper.readValue(new String("[{\"type\":\"console\",\"name\":\"console\"},{\"type\":\"fs\",\"name\":\"fs\",\"root\":\"file:///\"}]").getBytes(),new TypeReference<List<StorageEngineConfig>>() {});
-            List<StorageEngineConfig> storageEngines = new ArrayList<StorageEngineConfig>();
-            storageEngines.add(mapper.readValue(new String("{\"type\":\"hbase\",\"name\":\"hbase\"}").getBytes(),HBaseRSE.HBaseRSEConfig.class));
-            storageEngines.add(mapper.readValue(new String("{\"type\":\"mysql\",\"name\":\"mysql\"}").getBytes(),MySQLRSE.MySQLRSEConfig.class));
-            storageEngines.add(mapper.readValue(new String("{\"type\":\"console\",\"name\":\"console\"}").getBytes(),ConsoleRSE.ConsoleRSEConfig.class));
-            storageEngines.add(mapper.readValue(new String("{\"type\":\"fs\",\"name\":\"fs\",\"root\":\"file:///\"}").getBytes(),FileSystemRSE.FileSystemRSEConfig.class));
-
-            logicalPlan = new LogicalPlan(head, storageEngines, logicalOperators);
-            IteratorRegistry ir = new IteratorRegistry();
-            ReferenceInterpreter i = new ReferenceInterpreter(LogicalPlanOptimizer.getInstance().optimize(logicalPlan), ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
-            i.setup();
-
-            Collection<RunOutcome> outcomes = i.run();
-            List<RecordPointer> records = i.getRecords().get(0);
-            MapWritable mapWritable = new MapWritable();
-            mapWritable.put(new Text("meta"),new ArrayWritable(selections.toArray(new String[selections.size()])));
-            mapWritable.put(new Text("size"),new Text(String.valueOf(records.size())));
-            for(RecordPointer recordPointer:records){
-                mapWritable.put(new Text(String.valueOf(records.indexOf(recordPointer))), new ArrayWritable(changeToStringArray(recordPointer, selections)));
-            }
-            return mapWritable;
-        }
-
-
-        return null;
+          return null;
 
     }
 

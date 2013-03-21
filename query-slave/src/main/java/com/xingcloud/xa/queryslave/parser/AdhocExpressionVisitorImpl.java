@@ -16,6 +16,7 @@ import net.sf.jsqlparser.expression.operators.conditional.OrExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.SubSelect;
+import org.apache.drill.common.expression.fn.XAFunctions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,19 +128,31 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
         String funcName = function.getName();
         List<Expression> expressions = function.getParameters().getExpressions();
 
-        List<LogicalExpression> agrs = new ArrayList<LogicalExpression>();
+        List<LogicalExpression> args = new ArrayList<LogicalExpression>();
         for (Expression expr : expressions) {
             AdhocExpressionVisitorImpl exprVisitor = new AdhocExpressionVisitorImpl();
             expr.accept(exprVisitor);
-            agrs.add(exprVisitor.getLogicalExpression());
+          args.add(exprVisitor.getLogicalExpression());
         }
 
         if (funcName.toLowerCase().equals("count")) {
-            FunctionDefinition definition = AggregationFunctions.getFunctionDefintion("count");
-            le = new FunctionCall(definition, agrs);
+            FunctionDefinition definition;
+            if(isDistinct){
+              definition = XAFunctions.getFunctionDefintion("countDistinct");
+              isDistinct = false;
+            }else{
+              definition = AggregationFunctions.getFunctionDefintion("count");
+            }
+            le = new FunctionCall(definition, args );
         } else if (funcName.toLowerCase().equals("sum")) {
             FunctionDefinition definition = AggregationFunctions.getFunctionDefintion("sum");
-            le = new FunctionCall(definition, agrs);
+            le = new FunctionCall(definition, args);
+        }else if (funcName.toLowerCase().equals("min5")){
+            FunctionDefinition definition = XAFunctions.getFunctionDefintion("min5");
+            le = new FunctionCall(definition, args);
+        }else if (funcName.toLowerCase().equals("hour")){
+            FunctionDefinition definition = XAFunctions.getFunctionDefintion("hour");
+            le = new FunctionCall(definition, args);
         }
 
     }
