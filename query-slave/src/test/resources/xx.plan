@@ -20,7 +20,11 @@
     {
       type:"classpath",
       name:"cp"
-    }
+    },
+     {
+       type: "queue",
+       name: "queue"
+     }
   ],
   query:[
     {
@@ -75,8 +79,8 @@
 	    {
 	      op: "store",
 	      memo: "output sink",
-	      storageengine: "console",
-	      target: {pipe: "STD_OUT"}
+	      storageengine: "queue",
+	      target: {number:0}
 	    }
       ]
     }

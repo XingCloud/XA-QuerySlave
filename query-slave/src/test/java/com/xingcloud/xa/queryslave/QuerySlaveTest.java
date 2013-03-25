@@ -15,9 +15,9 @@ import org.apache.drill.exec.ref.rse.RSERegistry;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.util.Collection;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Created with IntelliJ IDEA.
@@ -30,28 +30,25 @@ public class QuerySlaveTest {
 
   private boolean executePlan(String logicPlanFile) throws Exception{
     DrillConfig config = DrillConfig.create();
+    BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
+    config.setSinkQueues(0, queue);
+
     LogicalPlan plan = LogicalPlan.parse(config, Files.toString(FileUtils.getResourceAsFile(logicPlanFile), Charsets.UTF_8));
     IteratorRegistry ir = new IteratorRegistry();
     ReferenceInterpreter i = new ReferenceInterpreter(plan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
 
-    //redirect standard output stream
-    PrintStream standardOutputStream = System.out;
-    ByteArrayOutputStream redirectedOutput = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(redirectedOutput));
-
-    i.setup();// covert rop will use system.out
+    i.setup();
     Collection<RunOutcome> outcomes = i.run();
 
-    redirectedOutput.write(new String("end output").getBytes());
-
-    String output = redirectedOutput.toString();
+    StringBuilder sb = new StringBuilder();
+    while(queue.peek() != null && ! (queue.peek() instanceof RunOutcome.OutcomeType)){
+      String record = new String((byte[])queue.poll());
+      sb.append(record);
+    }
     String result = Files.toString(FileUtils.getResourceAsFile(logicPlanFile.replace("plan","result")), Charsets.UTF_8);
 
-    //set back to standard output stream
-    System.setOut(standardOutputStream);
-    System.out.println(output);
-
-    return output.contains(result);
+    System.out.print(sb.toString());
+    return sb.toString().equals(result);
   }
 
   private boolean executeSql(String sql) throws Exception{
@@ -75,8 +72,8 @@ public class QuerySlaveTest {
   }
 
   @Test
-  public void testJoin() throws Exception{
-    assertTrue(executePlan("/JoinTest.plan"));
+  public void testAnd() throws Exception{
+    assertTrue(executePlan("/AndTest.plan"));
   }
 
   @Test
@@ -127,7 +124,7 @@ public class QuerySlaveTest {
     //5mau
     String sql3 = "select count(0) " +
         "from sof-dsk_deu "+
-        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' group by min5(sof-dsk_deu.ts)";
+        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225'";
 
     assertTrue(executeSql(sql3));
   }

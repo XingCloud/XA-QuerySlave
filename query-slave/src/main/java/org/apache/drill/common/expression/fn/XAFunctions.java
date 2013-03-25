@@ -25,13 +25,4 @@ public class XAFunctions implements CallProvider{
     };
   }
 
-  public static FunctionDefinition getFunctionDefintion(String name){
-
-    Map<String, Integer> funtionMap = new HashMap<String,Integer>();
-    funtionMap.put("countDistinct",0);
-    funtionMap.put("min5",1);
-    funtionMap.put("hour",2);
-
-    return new XAFunctions().getFunctionDefintions()[funtionMap.get(name)];
-  }
 }

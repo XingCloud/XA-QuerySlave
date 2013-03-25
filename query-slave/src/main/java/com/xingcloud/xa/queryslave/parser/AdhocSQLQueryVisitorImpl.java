@@ -246,8 +246,9 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
     private Store getStore(){
         try{
             ObjectMapper mapper = new ObjectMapper();
+            return new Store("queue", mapper.readValue(new String("{\"number\":0}").getBytes(), JSONOptions.class), null);
             //return new Store("console", mapper.readValue(new String("{\"pipe\":\"STD_OUT\"}").getBytes(),JSONOptions.class), null);
-            return new Store("fs", mapper.readValue(new String("{\"file\":\"/home/hadoop/scan_result\", \"type\":\"JSON\"}").getBytes(),JSONOptions.class), null);
+            //return new Store("fs", mapper.readValue(new String("{\"file\":\"/home/hadoop/scan_result\", \"type\":\"JSON\"}").getBytes(),JSONOptions.class), null);
         }catch (Exception e){
             //todo wcl
             return null;

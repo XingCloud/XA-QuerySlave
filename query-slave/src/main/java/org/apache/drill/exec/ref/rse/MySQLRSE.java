@@ -19,7 +19,7 @@ import java.util.Collections;
 
 /**
  * Created with IntelliJ IDEA.
- * User: hadoop
+ * User: wangchangli
  * Date: 3/11/13
  * Time: 6:04 AM
  * To change this template use File | Settings | File Templates.

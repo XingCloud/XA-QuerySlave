@@ -10,10 +10,7 @@ import org.apache.drill.common.logical.LogicalPlan;
 import org.apache.drill.common.logical.PlanProperties;
 import org.apache.drill.common.logical.StorageEngineConfig;
 import org.apache.drill.common.logical.data.LogicalOperator;
-import org.apache.drill.exec.ref.rse.ConsoleRSE;
-import org.apache.drill.exec.ref.rse.FileSystemRSE;
-import org.apache.drill.exec.ref.rse.HBaseRSE;
-import org.apache.drill.exec.ref.rse.MySQLRSE;
+import org.apache.drill.exec.ref.rse.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +62,7 @@ public class PlanParser {
             storageEngines.add(mapper.readValue(new String("{\"type\":\"mysql\",\"name\":\"mysql\"}").getBytes(),MySQLRSE.MySQLRSEConfig.class));
             storageEngines.add(mapper.readValue(new String("{\"type\":\"console\",\"name\":\"console\"}").getBytes(),ConsoleRSE.ConsoleRSEConfig.class));
             storageEngines.add(mapper.readValue(new String("{\"type\":\"fs\",\"name\":\"fs\",\"root\":\"file:///\"}").getBytes(),FileSystemRSE.FileSystemRSEConfig.class));
+            storageEngines.add(mapper.readValue(new String("{\"type\":\"queue\",\"name\":\"queue\"}").getBytes(), QueueRSE.QueueRSEConfig.class));
 
             plan = new LogicalPlan(head, storageEngines, logicalOperators);
         }

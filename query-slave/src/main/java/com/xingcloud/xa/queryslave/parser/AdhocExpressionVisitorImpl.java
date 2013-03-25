@@ -1,12 +1,9 @@
 package com.xingcloud.xa.queryslave.parser;
 
-import org.apache.drill.common.expression.FunctionDefinition;
-import org.apache.drill.common.expression.LogicalExpression;
+import org.apache.drill.common.config.DrillConfig;
+import org.apache.drill.common.expression.*;
 import org.apache.drill.common.expression.fn.AggregationFunctions;
 import org.apache.drill.common.expression.fn.BooleanFunctions;
-import org.apache.drill.common.expression.FunctionCall;
-import org.apache.drill.common.expression.FieldReference;
-import org.apache.drill.common.expression.ValueExpressions;
 
 
 import net.sf.jsqlparser.expression.*;
@@ -112,8 +109,8 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
         args.add(((AdhocExpressionVisitorImpl)leftVisitor).getLogicalExpression());
         args.add(((AdhocExpressionVisitorImpl)rightVisitor).getLogicalExpression());
 
-        FunctionDefinition definition = BooleanFunctions.getFunctionDefintion(registeredName);
-        le = new FunctionCall(definition, args);
+        FunctionRegistry functionRegistry = new FunctionRegistry(DrillConfig.create());
+        le = functionRegistry.createExpression(registeredName, args);
     }
 
     public boolean isDistinct() {
@@ -135,24 +132,21 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
           args.add(exprVisitor.getLogicalExpression());
         }
 
+
+        FunctionRegistry functionRegistry = new FunctionRegistry(DrillConfig.create());
         if (funcName.toLowerCase().equals("count")) {
-            FunctionDefinition definition;
             if(isDistinct){
-              definition = XAFunctions.getFunctionDefintion("countDistinct");
+              le = functionRegistry.createExpression("countDistinct", args);
               isDistinct = false;
             }else{
-              definition = AggregationFunctions.getFunctionDefintion("count");
+              le = functionRegistry.createExpression("count", args);
             }
-            le = new FunctionCall(definition, args );
         } else if (funcName.toLowerCase().equals("sum")) {
-            FunctionDefinition definition = AggregationFunctions.getFunctionDefintion("sum");
-            le = new FunctionCall(definition, args);
+            le = functionRegistry.createExpression("sum", args);
         }else if (funcName.toLowerCase().equals("min5")){
-            FunctionDefinition definition = XAFunctions.getFunctionDefintion("min5");
-            le = new FunctionCall(definition, args);
+            le = functionRegistry.createExpression("min5", args);
         }else if (funcName.toLowerCase().equals("hour")){
-            FunctionDefinition definition = XAFunctions.getFunctionDefintion("hour");
-            le = new FunctionCall(definition, args);
+            le = functionRegistry.createExpression("hour", args);
         }
 
     }
