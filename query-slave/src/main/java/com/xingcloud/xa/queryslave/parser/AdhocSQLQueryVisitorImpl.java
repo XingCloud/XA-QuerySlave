@@ -2,6 +2,7 @@ package com.xingcloud.xa.queryslave.parser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.drill.common.expression.*;
+import org.apache.drill.common.expression.FieldReference;
 import org.apache.drill.common.logical.JSONOptions;
 import org.apache.drill.common.logical.data.*;
 
@@ -12,6 +13,7 @@ import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.SelectVisitor;
 import net.sf.jsqlparser.statement.select.Union;
 import net.sf.jsqlparser.statement.select.SelectItem;
+import org.eclipse.jdt.internal.compiler.ast.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,13 +84,18 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
             }
         }
         if (groupbyLogicalExpressions.size() != 0) {
-             segment = new Segment(groupbyLogicalExpressions.toArray(new LogicalExpression[groupbyLogicalExpressions.size()]), new FieldReference("segment"));
-            if (filter != null){
-                segment.setInput(filter);
-            } else {
-                segment.setInput(fromLop);
-            }
+            //construct transform to evaluate group by key first
+            Transform transform = new Transform(new NamedExpression[]{new NamedExpression(groupbyLogicalExpressions.get(0), new FieldReference("segmentvalue"))});
+            //segment = new Segment(groupbyLogicalExpressions.toArray(new LogicalExpression[groupbyLogicalExpressions.size()]), new FieldReference("segment"));
+            segment = new Segment(new LogicalExpression[]{new FieldReference("segmentvalue")}, new FieldReference("segment"));
+            segment.setInput(transform);
             logicalOperators.add(segment);
+            if (filter != null){
+                transform.setInput(filter);
+            } else {
+                transform.setInput(fromLop);
+            }
+            logicalOperators.add(transform);
         }
 
         //distinct

@@ -1,15 +1,17 @@
 {
   "donuts" : {
-    "sales" : 109.71,
-    "quantity" : 159,
     "countDistinct" : 2,
+    "ppu" : 1.0
+  }
+} 
+{
+  "donuts" : {
+    "countDistinct" : 1,
     "ppu" : 0.55
   }
 } 
 {
   "donuts" : {
-    "sales" : 184.25,
-    "quantity" : 335,
     "countDistinct" : 1,
     "ppu" : 0.55
   }

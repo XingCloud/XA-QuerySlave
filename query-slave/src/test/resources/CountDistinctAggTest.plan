@@ -40,16 +40,6 @@
 	        type: "JSON"
 	      }
 	    },
-        {
-	      op: "transform",
-	      transforms: [
-	        { ref: "quantity", expr: "donuts.sales"}
-	      ]
-	    },
-	    {
-	      op: "filter",
-	      expr: "donuts.ppu < 1.00"
-	    },
 	    {
 	      op: "segment",
 	      ref: "ppusegment",
@@ -60,9 +50,7 @@
 	      within: "ppusegment",
 	      carryovers: ["donuts.ppu"],
 	      aggregations: [
-	        { ref: "donuts.countDistinct",  expr: "countDistinct(donuts.distinct)" },
-	        { ref: "donuts.quantity",  expr: "sum(quantity)" },
-	        { ref: "donuts.sales",  expr: "sum(donuts.ppu * quantity)" }
+	        { ref: "donuts.countDistinct",  expr: "countDistinct(donuts.distinct)" }
 	      ]
 	    },
 	    {
@@ -71,11 +59,6 @@
 	        {order: "desc", expr: "donuts.ppu" }
 	      ]
 	    },
- 	    {
-          op: "limit",
-          first: 0,
-          last: 100
-        },
 	    {
 	      op: "store",
 	      memo: "output sink",

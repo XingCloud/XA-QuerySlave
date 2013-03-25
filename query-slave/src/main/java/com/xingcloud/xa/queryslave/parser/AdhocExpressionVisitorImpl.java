@@ -16,7 +16,9 @@ import net.sf.jsqlparser.statement.select.SubSelect;
 import org.apache.drill.common.expression.fn.XAFunctions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created with IntelliJ IDEA.
@@ -29,7 +31,17 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
 
     private LogicalExpression le;
     private boolean isDistinct = false;
-
+    private static Map<String, String> functionNameMap = new HashMap(){
+      {
+        put("or", "||");
+        put("and","&&");
+        put("greater than", ">");
+        put("less than", "<");
+        put("equal", "==");
+        put("greater than or equal to", ">=");
+        put("less than or equal to", "<=");
+      }
+    };
 
     public LogicalExpression getLogicalExpression() {
         return le;
@@ -110,7 +122,8 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
         args.add(((AdhocExpressionVisitorImpl)rightVisitor).getLogicalExpression());
 
         FunctionRegistry functionRegistry = new FunctionRegistry(DrillConfig.create());
-        le = functionRegistry.createExpression(registeredName, args);
+
+        le = functionRegistry.createExpression(functionNameMap.get(registeredName), args);
     }
 
     public boolean isDistinct() {

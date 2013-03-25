@@ -29,7 +29,7 @@ import org.apache.drill.exec.ref.ReferenceInterpreter;
  * To change this template use File | Settings | File Templates.
  */
 public class HBaseRecordReader implements RecordReader {
-    private static Logger LOG = LoggerFactory.getLogger(ReferenceInterpreter.class);
+    private static Logger LOG = LoggerFactory.getLogger(HBaseRecordReader.class);
 
     private String startDate;
     private String endDate;
@@ -196,7 +196,7 @@ public class HBaseRecordReader implements RecordReader {
         DataValue tsDV = new ScalarValues.LongScalar(ts);
         map.setByName("ts", tsDV);
 
-        LOG.info(map.toString());
+        //LOG.info(map.toString());
         //System.out.println(innerUid+"\t"+eventVal+"\t"+ts);
         return map;
     }
