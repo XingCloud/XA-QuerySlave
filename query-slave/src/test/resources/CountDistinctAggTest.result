@@ -1,13 +1,13 @@
 {
   "donuts" : {
-    "countDistinct" : 2,
+    "countDistinct" : 1,
     "ppu" : 1.0
   }
 } 
 {
   "donuts" : {
-    "countDistinct" : 1,
-    "ppu" : 0.55
+    "countDistinct" : 2,
+    "ppu" : 0.69
   }
 } 
 {

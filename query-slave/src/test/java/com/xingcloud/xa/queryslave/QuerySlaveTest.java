@@ -52,7 +52,7 @@ public class QuerySlaveTest {
   }
 
   private boolean executeSql(String sql) throws Exception{
-    sql = sql.replace("-","xadrill");
+
     DrillConfig config = DrillConfig.create();
     BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
     config.setSinkQueues(0, queue);
@@ -101,10 +101,10 @@ public class QuerySlaveTest {
     assertTrue(executePlan("/TransformTest.plan"));
   }
 
-  @Test
-  public void testXX() throws Exception{
-    assertTrue(executePlan("/xx.plan"));
-  }
+//  @Test
+//  public void testXX() throws Exception{
+//    assertTrue(executePlan("/xx.plan"));
+//  }
 
   @Test
   public void testSecondDaysRetained() throws Exception{
@@ -126,7 +126,7 @@ public class QuerySlaveTest {
   public void testMin5() throws Exception{
 
     //5mau 5mvisit
-    String sql = "select segment, count(0), count(distinct sof-dsk_deu.uid) " +
+    String sql = "select count(0), count(distinct sof-dsk_deu.uid) " +
         "from sof-dsk_deu "+
         "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' " +
         "group by min5(sof-dsk_deu.ts)";

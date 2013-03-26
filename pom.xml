@@ -15,6 +15,20 @@
         <module>query-slave</module>
     </modules>
 
+    <repositories>
+        <repository>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+                <checksumPolicy>warn</checksumPolicy>
+            </releases>
+            <id>xamavenrepo</id>
+            <name>xamavenrepo</name>
+            <url>http://xamavenrepo:8081/archiva/repository/internal</url>
+            <layout>default</layout>
+        </repository>
+    </repositories>
+
     <properties>
         <dep.junit.version>4.11</dep.junit.version>
         <dep.slf4j.version>1.7.2</dep.slf4j.version>
@@ -22,51 +36,39 @@
 
     <dependencies>
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/mysql-connector-java-5.1.23-bin.jar</systemPath>
+            <groupId>mysql-connector-java</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.23</version>
         </dependency>
 
         <dependency>
             <groupId>hadoop-core</groupId>
             <artifactId>hadoop-core</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/hadoop-core-0.20.2-cdh3u4.jar</systemPath>
+            <version>0.20</version>
         </dependency>
 
         <dependency>
-            <groupId>hadoop-lzo-0.4.15</groupId>
-            <artifactId>hadoop-lzo-0.4.15</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/hadoop-lzo-0.4.15.jar</systemPath>
+            <groupId>hadoop-lzo</groupId>
+            <artifactId>hadoop-lzo</artifactId>
+            <version>0.4.15</version>
         </dependency>
 
         <dependency>
             <groupId>hbase</groupId>
             <artifactId>hbase</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/hbase-0.94.0.jar</systemPath>
+            <version>0.94</version>
         </dependency>
 
         <dependency>
             <groupId>zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/zookeeper-3.4.3.jar</systemPath>
+            <version>3.4.3</version>
         </dependency>
 
         <dependency>
             <groupId>guava-r09-jarjar</groupId>
             <artifactId>guava-r09-jarjar</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/guava-r09-jarjar.jar</systemPath>
+            <version>1.0</version>
         </dependency>
 
         <dependency>
@@ -76,11 +78,9 @@
         </dependency>
 
         <dependency>
-            <groupId>commons-lang-2.5</groupId>
-            <artifactId>commons-lang-2.5</artifactId>
-            <version>xx</version>
-            <scope>system</scope>
-            <systemPath>/usr/java/xa-qs-lib/commons-lang-2.5.jar</systemPath>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.5</version>
         </dependency>
 
         <dependency>

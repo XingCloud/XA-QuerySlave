@@ -55,9 +55,11 @@ public class QuerySlave implements QuerySlaveProtocol{
             //construct the map writable
             MapWritable mapWritable = new MapWritable();
             List<String> selections = PlanParser.getInstance().getSelections();
-            mapWritable.put(new Text("meta"),new ArrayWritable(selections.toArray(new String[selections.size()])));
-            mapWritable.put(new Text("size"),new Text(String.valueOf(queue.size()-1)));
+            if (sql.contains("group")){
+              selections.add("segmentvalue");
+            }
 
+            mapWritable.put(new Text("size"),new Text(String.valueOf(queue.size()-1)));
             ObjectMapper mapper = new ObjectMapper();
             int index = 0;
             while(queue.peek() != null && ! (queue.peek() instanceof RunOutcome.OutcomeType)){
@@ -67,9 +69,19 @@ public class QuerySlave implements QuerySlaveProtocol{
                 mapWritable.put(new Text(String.valueOf(index)), new ArrayWritable(changeToStringArray(dataValue, selections)));
                 index++;
             }
+
+            for(int j=0; j<selections.size();j++){
+              String metaString = selections.get(j);
+              if (selections.get(j).contains("countDistinct")){
+                metaString = metaString.replace("countDistinct.", "count.distinct ").replaceFirst("\\.", "(").replace("xadrill", "-") + ")";
+              }else if (selections.get(j).contains("count") || selections.get(j).contains("sum")){
+                metaString = selections.get(j).replaceFirst("\\.", "(").replace("xadrill", "-") + ")";
+              }
+              selections.set(j, metaString);
+            }
+            mapWritable.put(new Text("meta"),new ArrayWritable(selections.toArray(new String[selections.size()])));
             return mapWritable;
           }
-
           return null;
 
     }
@@ -172,27 +184,35 @@ public class QuerySlave implements QuerySlaveProtocol{
     }
 
     public static void main(String[] args) throws Exception{
-//        QuerySlave querySlave = new QuerySlave();
-//        MapWritable mapWritable = querySlave.query(new String("Select count(distinct sof-dsk_deu.uid) FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'").replace("-","xadrill"));
-//
-//        for (MapWritable.Entry<Writable, Writable> entry : mapWritable.entrySet()) {
-//            Text key = (Text)entry.getKey();
-//            System.err.print(key + ":");
-//            if (key.toString().equals("size")){
-//                Text value = (Text)entry.getValue();
-//                System.err.println(value);
-//            }else{
-//                ArrayWritable value = (ArrayWritable)entry.getValue();
-//                String[] record = value.toStrings();
-//                System.err.println(Arrays.toString(record));
-//            }
-//
-//
-//
-//        }
+      String sql5min = "select count(0), count(distinct sof-dsk_deu.uid) " +
+        "from sof-dsk_deu "+
+        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' " +
+        "group by min5(sof-dsk_deu.ts)";
 
-        QuerySlave querySlave = new QuerySlave();
-        querySlave.startServer();
+      String sqlSecondDayRetained = "Select count(distinct sof-dsk_deu.uid) " +
+        "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
+        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
+
+      QuerySlave querySlave = new QuerySlave();
+      MapWritable mapWritable = querySlave.query(sql5min);
+
+      for (MapWritable.Entry<Writable, Writable> entry : mapWritable.entrySet()) {
+        Text key = (Text) entry.getKey();
+        System.err.print(key + ":");
+        if (key.toString().equals("size")) {
+          Text value = (Text) entry.getValue();
+          System.err.println(value);
+        } else {
+          ArrayWritable value = (ArrayWritable) entry.getValue();
+          String[] record = value.toStrings();
+          System.err.println(Arrays.toString(record));
+        }
+
+
+      }
+
+//        QuerySlave querySlave = new QuerySlave();
+//        querySlave.startServer();
 
     }
 

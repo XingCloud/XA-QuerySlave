@@ -45,6 +45,7 @@ public class PlanParser {
     }
 
     public LogicalPlan parse(String sql) throws JSQLParserException, Exception {
+        sql = sql.replace("-","xadrill");
         LogicalPlan plan = null;
         Statement statement = pm.parse(new StringReader(sql));
         if (statement instanceof Select) {

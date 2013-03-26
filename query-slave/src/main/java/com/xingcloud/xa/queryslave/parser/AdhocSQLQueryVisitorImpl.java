@@ -214,7 +214,7 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
                 NamedExpression nameExpr = new NamedExpression(namedExpression.getRef(), new FieldReference("output"));//wcl
                 list.add(nameExpr);
             } else {
-                list.add(new NamedExpression(namedExpression.getRef(), new FieldReference("output")));
+                list.add(new NamedExpression(namedExpression.getRef(), new FieldReference("output."+namedExpression.getRef().getPath())));
             }
         }
         return list.toArray(new NamedExpression[0]);
