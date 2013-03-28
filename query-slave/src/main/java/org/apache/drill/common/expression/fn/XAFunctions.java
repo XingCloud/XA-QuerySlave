@@ -19,7 +19,6 @@ public class XAFunctions implements CallProvider{
   @Override
   public FunctionDefinition[] getFunctionDefintions() {
     return new FunctionDefinition[]{
-        FunctionDefinition.aggregator("countDistinct",  new ArgumentValidators.AnyTypeAllowed(1), new OutputTypeDeterminer.SameAsFirstInput()),
         FunctionDefinition.operator("min5",new ArgumentValidators.AnyTypeAllowed(1),new OutputTypeDeterminer.SameAsFirstInput(),"min5"),
         FunctionDefinition.operator("hour",new ArgumentValidators.AnyTypeAllowed(1),new OutputTypeDeterminer.SameAsFirstInput(),"hour")
     };

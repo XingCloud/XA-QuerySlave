@@ -82,21 +82,6 @@ public class QuerySlaveTest {
   }
 
   @Test
-  public void testAnd() throws Exception{
-    assertTrue(executePlan("/AndTest.plan"));
-  }
-
-  @Test
-  public void testDistinct() throws Exception{
-    assertTrue(executePlan("/DistinctTest.plan"));
-  }
-
-  @Test
-  public void testCountDistinctAggregator() throws Exception{
-    assertTrue(executePlan("/CountDistinctAggTest.plan"));
-  }
-
-  @Test
   public void testTransform() throws Exception{
     assertTrue(executePlan("/TransformTest.plan"));
   }

@@ -56,7 +56,13 @@
         within: "ppusegment",
         carryovers: ["donuts.ppu", "segmentvalue"],
         aggregations: [
-          { ref: "donuts.countDistinct",  expr: "countDistinct(donuts.distinct)" }
+          { ref: "donuts.types",  expr: "countDistinct(donuts.type)" }
+        ]
+      },
+      {
+        op: "order",
+        orderings: [
+          {order: "asc", expr: "donuts.ppu" }
         ]
       },
 	    {

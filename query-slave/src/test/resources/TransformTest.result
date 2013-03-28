@@ -1,21 +1,21 @@
 {
+  "segmentvalue" : 0.55,
+  "donuts" : {
+    "ppu" : 0.55,
+    "types" : 1
+  }
+} 
+{
   "segmentvalue" : 0.69,
   "donuts" : {
-    "countDistinct" : 2,
-    "ppu" : 0.69
+    "ppu" : 0.69,
+    "types" : 2
   }
 } 
 {
   "segmentvalue" : 1.0,
   "donuts" : {
-    "countDistinct" : 1,
-    "ppu" : 1.0
-  }
-} 
-{
-  "segmentvalue" : 0.55,
-  "donuts" : {
-    "countDistinct" : 1,
-    "ppu" : 0.55
+    "ppu" : 1.0,
+    "types" : 1
   }
 } 
