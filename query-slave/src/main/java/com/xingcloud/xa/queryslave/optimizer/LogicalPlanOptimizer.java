@@ -67,7 +67,8 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
 
                     if (filter != null) {
                         source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
-                        for (LogicalOperator child : filter) {
+                        List<LogicalOperator> filterChildren = filter.getAllSubscribers();
+                        for (LogicalOperator child : filterChildren) {
                             if (child instanceof Join) {
                                 if (((Join) child).getLeft() == filter) {
                                     ((Join) child).setLeft(source);
@@ -96,7 +97,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                     }
                     if (filter != null) {
                         source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
-                        for (LogicalOperator child : filter) {
+                        for (LogicalOperator child : filter.getAllSubscribers()) {
                             if (child instanceof Join) {
                                 if (((Join) child).getLeft() == filter) {
                                     ((Join) child).setLeft(source);
@@ -208,19 +209,19 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
 
         if (filterNode != null) {
             Filter filter =  (Filter) filterNode.getNodeValue();
-
+            List<LogicalOperator> filterChildren = filter.getAllSubscribers();
             /* Check if parent is source operator */
             LogicalOperator filterParent = filter.getInput();
             if (!(filterParent instanceof SourceOperator)) {
-                /* Pick up it, so it can follow source operator */
+                /* Pick it up, so it can follow source operator */
                 Collection<SourceOperator> sources = graph.getSources();
                 for (SourceOperator source : sources) {
+                    List<LogicalOperator> sourceChildren = source.getAllSubscribers();
                     LogicalExpression newLogicalExpr = getLogicalExpr(filter, (Scan) source);
                     Filter optimizedFilter = new Filter(newLogicalExpr);
                     optimizedFilter.setInput(source);
                     operators.add(optimizedFilter);
-
-                    for (LogicalOperator children : source) {
+                    for (LogicalOperator children : sourceChildren) {
                         if (children instanceof SingleInputOperator) {
                             ((SingleInputOperator) children).setInput(optimizedFilter);
                         } else if (children instanceof Join){
@@ -238,13 +239,15 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                         }
                     }
 
-                    for (LogicalOperator filterChild : filter) {
+
+                    for (LogicalOperator filterChild : filterChildren) {
                         if (filterChild instanceof SingleInputOperator) {
                             ((SingleInputOperator) filterChild).setInput(filterParent);
                         }
                     }
 
                 }
+                filter.setInput(null);
             } else {
                 /* Don't need any optimization */
                 operators.add(filter);
