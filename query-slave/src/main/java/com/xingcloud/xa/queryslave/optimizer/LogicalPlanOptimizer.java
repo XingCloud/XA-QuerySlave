@@ -54,7 +54,6 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                 String se = ((Scan) source).getStorageEngine();
                 if (se.equals("mysql")) {
                     JSONOptions selection = null;
-                    List<LogicalOperator> filterChildren = null;
                     Filter filter = null;
                     /* Combine filter and scan to mysql scanner */
                     for (LogicalOperator operator : source) {
@@ -63,13 +62,12 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                             filter = (Filter) operator;
                             String sql = changeToSQL((Scan) source, filter);
                             selection = mapper.readValue(new String("{\"sql\":\"" + sql + "\"}").getBytes(), JSONOptions.class);
-                            filterChildren = new ArrayList<LogicalOperator>(operator.getAllSubscribers());
                         }
                     }
 
                     if (filter != null) {
                         source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
-                        for (LogicalOperator child : filterChildren) {
+                        for (LogicalOperator child : filter) {
                             if (child instanceof Join) {
                                 if (((Join) child).getLeft() == filter) {
                                     ((Join) child).setLeft(source);
@@ -85,7 +83,6 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                 } else if (se.equals("hbase")) {
                     /* Combine filter and scan to hbase scanner */
                     Filter filter = null;
-                    List<LogicalOperator> filterChildren = null;
                     JSONOptions selection = null;
                     for (LogicalOperator operator : source) {
                         if (operator instanceof Filter) {
@@ -95,12 +92,11 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                             JSONObject hbaseScanInfo = getInitHBaseScanInfo();
                             getHBaseScanInfo(expr, hbaseScanInfo);
                             selection = mapper.readValue(hbaseScanInfo.toJSONString().getBytes(), JSONOptions.class);
-                            filterChildren = new ArrayList<LogicalOperator>(operator.getAllSubscribers());
                         }
                     }
                     if (filter != null) {
                         source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
-                        for (LogicalOperator child : filterChildren) {
+                        for (LogicalOperator child : filter) {
                             if (child instanceof Join) {
                                 if (((Join) child).getLeft() == filter) {
                                     ((Join) child).setLeft(source);
@@ -216,18 +212,15 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
             /* Check if parent is source operator */
             LogicalOperator filterParent = filter.getInput();
             if (!(filterParent instanceof SourceOperator)) {
-                List<LogicalOperator> filterChildren = new ArrayList(filter.getAllSubscribers());
                 /* Pick up it, so it can follow source operator */
                 Collection<SourceOperator> sources = graph.getSources();
                 for (SourceOperator source : sources) {
-                    List<LogicalOperator> sourceChildren = new ArrayList(source.getAllSubscribers());
                     LogicalExpression newLogicalExpr = getLogicalExpr(filter, (Scan) source);
                     Filter optimizedFilter = new Filter(newLogicalExpr);
-                    source.clearAllSubscribers();
                     optimizedFilter.setInput(source);
                     operators.add(optimizedFilter);
 
-                    for (LogicalOperator children : sourceChildren) {
+                    for (LogicalOperator children : source) {
                         if (children instanceof SingleInputOperator) {
                             ((SingleInputOperator) children).setInput(optimizedFilter);
                         } else if (children instanceof Join){
@@ -245,8 +238,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                         }
                     }
 
-                    filterParent.clearAllSubscribers();
-                    for (LogicalOperator filterChild : filterChildren) {
+                    for (LogicalOperator filterChild : filter) {
                         if (filterChild instanceof SingleInputOperator) {
                             ((SingleInputOperator) filterChild).setInput(filterParent);
                         }
