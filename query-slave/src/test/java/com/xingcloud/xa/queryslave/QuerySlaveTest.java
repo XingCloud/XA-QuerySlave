@@ -12,9 +12,14 @@ import org.apache.drill.exec.ref.ReferenceInterpreter;
 import org.apache.drill.exec.ref.RunOutcome;
 import org.apache.drill.exec.ref.eval.BasicEvaluatorFactory;
 import org.apache.drill.exec.ref.rse.RSERegistry;
+import org.apache.hadoop.io.ArrayWritable;
+import org.apache.hadoop.io.MapWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -128,4 +133,34 @@ public class QuerySlaveTest {
 
     assertTrue(executeSql(sql));
   }
+  
+  @Test
+  public void testRpc() throws Exception{
+    String sql5min = "select count(0), count(distinct sof-dsk_deu.uid) " +
+      "from sof-dsk_deu " +
+      "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' " +
+      "group by min5(sof-dsk_deu.ts)";
+
+    String sqlSecondDayRetained = "Select count(distinct sof-dsk_deu.uid) " +
+      "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
+      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
+
+    QuerySlave querySlave = new QuerySlave();
+    MapWritable mapWritable = querySlave.query(sql5min);
+
+    for (MapWritable.Entry<Writable, Writable> entry : mapWritable.entrySet()) {
+      Text key = (Text) entry.getKey();
+      System.err.print(key + ":");
+      if (key.toString().equals("size")) {
+        Text value = (Text) entry.getValue();
+        System.err.println(value);
+      } else {
+        ArrayWritable value = (ArrayWritable) entry.getValue();
+        String[] record = value.toStrings();
+        System.err.println(Arrays.toString(record));
+      }
+    }
+
+  }
+  
 }
