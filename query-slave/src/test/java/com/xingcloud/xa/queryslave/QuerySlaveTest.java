@@ -62,7 +62,7 @@ public class QuerySlaveTest {
     BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
     config.setSinkQueues(0, queue);
 
-    LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql);
+    LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql.replace("sof-dsk_deu","sof-dsk_deu_allversions"));
     System.out.println("Before optimize: ");
     System.out.println(logicalPlan.toJsonString(config));
 
