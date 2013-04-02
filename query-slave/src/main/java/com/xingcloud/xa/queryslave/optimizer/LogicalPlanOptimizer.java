@@ -77,7 +77,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                                 selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(i).getSecond() + "\"}").getBytes(), JSONOptions.class);
                                 LogicalOperator op2 = new Scan("mysql", selection, new FieldReference(sqls.get(i).getFirst()));
                                 newSources.add((SourceOperator) op2);
-                                JoinCondition jc = new JoinCondition(relationship, null, new FieldReference(sqls.get(i).getFirst() + ".uid"));
+                                JoinCondition jc = new JoinCondition(relationship, new FieldReference("uid"), new FieldReference("uid"));
                                 conds = new JoinCondition[1];
                                 conds[0] = jc;
                                 join = new Join(op1, op2, conds, Join.JoinType.INNER.toString());
