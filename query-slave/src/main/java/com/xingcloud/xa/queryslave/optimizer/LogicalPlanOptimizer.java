@@ -56,7 +56,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                     JSONOptions selection = null;
                     Filter filter = null;
                     /* Combine filter and scan to mysql scanner */
-                    List<Pair<String, String>> sqls = null;
+                    List<String> sqls = null;
                     for (LogicalOperator operator : source) {
                         if (operator instanceof Filter) {
                             /* Should have only one filter */
@@ -64,23 +64,23 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                             sqls = changeToSQL((Scan) source, filter);
                         }
                     }
+                    String field =  ((Scan) source).getOutputReference().getPath().toString() ;
                     if (filter != null) {
-                        // TODO output reference and JoinCondition
-                        selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(0).getSecond() + "\"}").getBytes(), JSONOptions.class);
-                        LogicalOperator op1 = new Scan(((Scan) source).getStorageEngine(), selection, new FieldReference(sqls.get(0).getFirst()));
+                        selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(0) + "\"}").getBytes(), JSONOptions.class);
+                        LogicalOperator op1 = new Scan(((Scan) source).getStorageEngine(), selection, new FieldReference(field));
                         newSources.add((SourceOperator) op1);
                         if (sqls.size() > 1) {
                             Join join = null;
                             String relationship = "==";
                             JoinCondition[] conds = null;
                             for (int i = 1; i < sqls.size(); i++) {
-                                selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(i).getSecond() + "\"}").getBytes(), JSONOptions.class);
-                                LogicalOperator op2 = new Scan("mysql", selection, new FieldReference(sqls.get(i).getFirst()));
+                                selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(i) + "\"}").getBytes(), JSONOptions.class);
+                                LogicalOperator op2 = new Scan("mysql", selection, new FieldReference(field));
                                 newSources.add((SourceOperator) op2);
-                                JoinCondition jc = new JoinCondition(relationship, new FieldReference("uid"), new FieldReference("uid"));
+                                JoinCondition jc = new JoinCondition(relationship, new FieldReference(field+".uid"), new FieldReference(field+".uid"));
                                 conds = new JoinCondition[1];
                                 conds[0] = jc;
-                                join = new Join(op1, op2, conds, Join.JoinType.INNER.toString());
+                                join = new Join(op2, op1, conds, Join.JoinType.INNER.toString());
                                 op1 = join;
                             }
                         }
@@ -318,25 +318,29 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
     }
 
 
-    private List<Pair<String, String>> changeToSQL(Scan scan, Filter filter) {
-        String dataBaseName = scan.getOutputReference().getPath().toString().replace("xadrill", "-");
+    private List<String> changeToSQL(Scan scan, Filter filter) {
+        String dataBaseName = scan.getOutputReference().getPath().toString();
+        String database = dataBaseName.replace("xadrill", "-");
         LogicalExpression expr = filter.getExpr();
         Set<String> tables = new HashSet<String>();
         Map<String, String> sqlsInfo = getSQLInfoFilters(expr);
-        List<Pair<String, String>> sqls = new ArrayList<Pair<String, String>>();
+        List<String> sqls = new ArrayList<String>();
         for (Map.Entry<String, String> entry : sqlsInfo.entrySet()) {
             String tableName = entry.getKey();
             StringBuilder sql = new StringBuilder("SELECT ").
+                    append("uid AS uid,").
+                    append("val AS ").
                     append(tableName).
-                    append(".uid,").
-                    append(tableName).
-                    append(".val FROM `").
-                    append(dataBaseName).
+                    append(" FROM `").
+                    append(database).
                     append("`.`").
                     append(tableName).
+                    append("` AS `").
+                    append(dataBaseName).
                     append("` WHERE ").
-                    append(entry.getValue());
-            sqls.add(new Pair<String, String>(tableName, sql.toString()));
+                    append(entry.getValue())
+                    ;
+            sqls.add( sql.toString());
         }
         return sqls;
     }
@@ -382,7 +386,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         } else if (expr instanceof FieldReference) {
             String ref = ((FieldReference) expr).getPath().toString();
             String tableName = ref.split("\\.")[1];
-            collectToFilters(filters, tableName, tableName + ".val");
+            collectToFilters(filters, tableName,"val");
 
         } else if (expr instanceof ValueExpressions.LongExpression) {
             collectToFilters(filters, null, String.valueOf(((ValueExpressions.LongExpression) expr).getLong()));

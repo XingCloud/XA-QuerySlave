@@ -212,8 +212,10 @@ public class QuerySlave implements QuerySlaveProtocol{
 
 
       }
-        //QuerySlave querySlave = new QuerySlave();
-        //querySlave.startServer();
+
+//        QuerySlave querySlave = new QuerySlave();
+//        querySlave.startServer();
+
     }
 
 }
