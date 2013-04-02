@@ -191,10 +191,12 @@ public class QuerySlave implements QuerySlaveProtocol{
 
       String sqlSecondDayRetained = "Select count(distinct sof-dsk_deu.uid) " +
         "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
-        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
+        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<=20130101000000 and fix_sof-dsk.first_pay_time = 20130101000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
 
+
+      String sql = "SELECT count(distinct fix_sof-dsk.uid) FROM fix_sof-dsk   WHERE fix_sof-dsk.register_time>=19700101000000 and fix_sof-dsk.register_time<=20140101000000 and fix_sof-dsk.first_pay_time >= 19700101000000" ;
       QuerySlave querySlave = new QuerySlave();
-      MapWritable mapWritable = querySlave.query(sql5min);
+      MapWritable mapWritable = querySlave.query(sqlSecondDayRetained);
 
       for (MapWritable.Entry<Writable, Writable> entry : mapWritable.entrySet()) {
         Text key = (Text) entry.getKey();
