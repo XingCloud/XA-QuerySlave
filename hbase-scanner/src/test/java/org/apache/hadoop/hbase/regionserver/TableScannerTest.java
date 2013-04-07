@@ -42,7 +42,6 @@ public class TableScannerTest {
 
   @BeforeClass
   public static void initLog4j() {
-
     SchemaMetrics.configureGlobally(conf);
   }
 
