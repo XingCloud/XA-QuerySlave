@@ -7,6 +7,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
@@ -22,12 +23,13 @@ import java.util.*;
  * Time: 下午5:07
  * To change this template use File | Settings | File Templates.
  */
-public class TableScanner implements XAScanner{
+public class TableScanner implements XAScanner {
     private static Logger LOG = LoggerFactory.getLogger(TableScanner.class);
 
     private String startRowKey;
     private String endRowKey;
     private String tableName;
+    private Filter filter;
 
     private List<DataScanner> scanners;
 
@@ -36,17 +38,24 @@ public class TableScanner implements XAScanner{
     private int currentIndex = 0;
 
     public TableScanner(String startRowKey, String endRowKey, String tableName, boolean isFileOnly, boolean isMemOnly) {
+        this(startRowKey, endRowKey, tableName, null, isFileOnly, isMemOnly);
+    }
+
+    public TableScanner(String startRowKey, String endRowKey, String tableName, Filter filter,
+                        boolean isFileOnly, boolean isMemOnly) {
         this.isFileOnly = isFileOnly;
         this.isMemOnly = isMemOnly;
         this.startRowKey = startRowKey;
         this.endRowKey = endRowKey;
         this.tableName = tableName;
+        this.filter = filter;
         try {
             initScanner();
         } catch (IOException e) {
             e.printStackTrace();
             LOG.error("Table scanner init failure! MSG: " + e.getMessage());
         }
+
     }
 
     private void initScanner() throws IOException {
@@ -60,20 +69,6 @@ public class TableScanner implements XAScanner{
 
         scanners = new ArrayList<DataScanner>();
         long st = System.nanoTime();
-        if (!isMemOnly) {
-            LOG.info("Begin to init store file scanner...");
-            List<HRegionInfo> regionInfoList = getRegionInfoList(table, seKeyList);
-            LOG.info("Number of regions: " + regionInfoList.size() + " for " + tableName + " " + startRowKey + " " + endRowKey);
-
-            for (HRegionInfo regionInfo : regionInfoList) {
-                LOG.info("Init hfile scanner of " + regionInfo.toString());
-                Scan fileScan = new Scan(startRow, endRow);
-                fileScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
-                HFileScanner regionScanner = new HFileScanner(regionInfo, fileScan);
-                scanners.add(regionScanner);
-            }
-            LOG.info("Init hfile scanner finished. Taken: " + (System.nanoTime()-st)/1.0e9 + " sec");
-        }
 
         if (!isFileOnly) {
             LOG.info("Begin to init memstore scanner...");
@@ -82,10 +77,32 @@ public class TableScanner implements XAScanner{
             memScan.setMaxVersions();
             memScan.setMemOnly(true);
             memScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
+            if (filter != null)
+                memScan.setFilter(filter);
             MemstoreScanner memstoreScanner = new MemstoreScanner(table, memScan);
             scanners.add(memstoreScanner);
-            LOG.info("Init memstore scanner finished. Taken: " + (System.nanoTime()-st)/1.0e9 + " sec");
+            LOG.info("Init memstore scanner finished. Taken: " + (System.nanoTime() - st) / 1.0e9 + " sec");
         }
+
+        if (!isMemOnly) {
+            LOG.info("Begin to init store file scanner...");
+            List<HRegionInfo> regionInfoList = getRegionInfoList(table, seKeyList);
+            LOG.info("Number of regions: " + regionInfoList.size() + " for " + tableName + " " + startRowKey + " " + endRowKey);
+
+            for (HRegionInfo regionInfo : regionInfoList) {
+                LOG.info("Init hfile scanner of " + regionInfo.toString());
+                Scan fileScan = new Scan(startRow, endRow);
+                if (filter != null)
+                    fileScan.setFilter(filter);
+                fileScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
+
+                HFileScanner regionScanner = new HFileScanner(regionInfo, fileScan);
+                scanners.add(regionScanner);
+            }
+            LOG.info("Init hfile scanner finished. Taken: " + (System.nanoTime() - st) / 1.0e9 + " sec");
+        }
+
+
     }
 
     public static List<HRegionInfo> getRegionInfoList(HTable hTable, List<Pair<byte[], byte[]>> seKeyList) throws IOException {
@@ -162,7 +179,7 @@ public class TableScanner implements XAScanner{
     public boolean next(List<KeyValue> results) throws IOException {
         DataScanner regionScanner = scanners.get(currentIndex);
         boolean next = regionScanner.next(results);
-        if (!next && currentIndex < scanners.size()-1) {
+        if (!next && currentIndex < scanners.size() - 1) {
             /* Move to next scanner */
             currentIndex++;
             return true;
@@ -197,7 +214,7 @@ public class TableScanner implements XAScanner{
                 results.clear();
                 done = scanner.next(results);
                 for (KeyValue kv : results) {
-                    if (counter%1000 == 0 || !done) {
+                    if (counter % 1000 == 0 || !done) {
                         LOG.info(Bytes.toString(kv.getRow()));
                     }
                     counter++;
@@ -215,6 +232,6 @@ public class TableScanner implements XAScanner{
                 }
             }
         }
-        LOG.info("Scan finish. Total rows: " + counter + " Taken: " + (System.nanoTime()-st)/1.0e9 + " sec");
+        LOG.info("Scan finish. Total rows: " + counter + " Taken: " + (System.nanoTime() - st) / 1.0e9 + " sec");
     }
 }
