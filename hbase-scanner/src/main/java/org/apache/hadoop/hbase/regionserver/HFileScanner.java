@@ -209,7 +209,6 @@ public class HFileScanner implements DataScanner {
         length = current.getRowLength();
       }
 
-
       // First, check if we are at a stop row. If so, there are no more results.
       boolean stopRow = isStopRow(currentRow, offset, length);
       if (stopRow) {
@@ -264,7 +263,6 @@ public class HFileScanner implements DataScanner {
         return false;
       }
 
-
       // Finally, we are done with both joinedHeap and storeHeap.
       // Double check to prevent empty rows from appearing in result. It could be
       // the case when SingleValueExcludeFilter is used.
@@ -275,13 +273,6 @@ public class HFileScanner implements DataScanner {
       }
       return !stopRow;
     }
-  }
-
-  private void nextRow(byte[] currentRow) throws IOException {
-    while (Bytes.equals(currentRow, peekRow())) {
-      this.storeHeap.next(MOCKED_LIST);
-    }
-    results.clear();
   }
 
   protected boolean nextRow(byte[] currentRow, int offset, short length) throws IOException {
@@ -307,11 +298,6 @@ public class HFileScanner implements DataScanner {
     if (filter != null) {
       filter.reset();
     }
-  }
-
-  private byte[] peekRow() {
-    KeyValue kv = this.storeHeap.peek();
-    return kv == null ? null : kv.getRow();
   }
 
   private boolean isStopRow(byte[] currentRow, int offset, short length) {
