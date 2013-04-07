@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+  <property>
+    <name>fs.default.name</name>
+    <value>hdfs://xamavenrepo:19000</value>
+  </property>
+
+  <property>
+     <name>hadoop.tmp.dir</name>
+     <value>/data/hadoop/cache/hadoop</value>
+  </property>
+
+  <property>
+     <name>fs.trash.interval</name>
+     <value>2880</value>
+     <description>
+        Number of minutes between trash checkpoints. If zero, the trash feature is disabled
+     </description>
+  </property>
+
+  <!-- OOZIE proxy user setting -->
+  <property>
+    <name>hadoop.proxyuser.oozie.hosts</name>
+    <value>*</value>
+  </property>
+  <property>
+    <name>hadoop.proxyuser.oozie.groups</name>
+    <value>*</value>
+  </property>
+
+  <property>
+     <name>dfs.hosts.exclude</name>
+     <value>slaves.ex</value>
+  </property>
+</configuration>
