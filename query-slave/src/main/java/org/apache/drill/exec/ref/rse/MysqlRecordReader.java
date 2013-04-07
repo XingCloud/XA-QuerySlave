@@ -31,12 +31,12 @@ public class MysqlRecordReader implements RecordReader {
     private String sql = null;
     private ROP parent;
     private SchemaPath rootPath;
-
+    private Connection conn = null;
+    private Statement stmt = null ;
     private ResultSet rs = null;
     private ResultSetMetaData rsMetaData = null;
     private int columnCount;
     private UnbackedRecord record = new UnbackedRecord();
-
 
     public MysqlRecordReader(String sql, ROP parent, SchemaPath rootPath) {
         this.sql = sql;
@@ -52,19 +52,32 @@ public class MysqlRecordReader implements RecordReader {
 
     @Override
     public void setup() {
-
+        try {
+            conn = MySQLRSE.getConnection();
+        } catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("Get mysql connection failed : " + e.getMessage());
+        }
 
     }
 
     @Override
     public void cleanup() {
+        if (conn != null) {
+            try {
+                rs.close();
+                stmt.close();
+                conn.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                LOG.error("Mysql connection close failed : " + e.getMessage());
+            }
+        }
 
     }
 
-    private void executeQuery() throws ClassNotFoundException,SQLException {
-        Class.forName("com.mysql.jdbc.Driver");
-        Connection conn = DriverManager.getConnection("jdbc:mysql://10.18.4.22:3306", "xadrill", "123456");
-        Statement stmt = conn.createStatement();
+    private void executeQuery() throws ClassNotFoundException, SQLException {
+        stmt = conn.createStatement();
         rs = stmt.executeQuery(sql);
         rsMetaData = rs.getMetaData();
         columnCount = rsMetaData.getColumnCount();
@@ -98,7 +111,7 @@ public class MysqlRecordReader implements RecordReader {
                             dv = new ScalarValues.IntegerScalar(innerUid);
                             dataValue.setByName(columnName, dv);
                         } else {
-                            columnName = rsMetaData.getTableName(columnIndex) ;
+                            columnName = rsMetaData.getTableName(columnIndex);
                             Object value = rs.getObject(columnIndex);
 
                             if (value instanceof String)
