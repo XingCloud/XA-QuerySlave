@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property>
+        <name>hbase.rootdir</name>
+        <value>hdfs://xamavenrepo:19000/hbase</value>
+    </property>
+    <property>
+        <name>hbase.cluster.distributed</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>hbase.zookeeper.quorum</name>
+        <value>xamavenrepo</value>
+    </property>
+    <property>
+        <name>hbase.zookeeper.property.clientPort</name>
+        <value>3181</value>
+    </property>
+    <property skipInDoc="true">
+        <name>hbase.defaults.for.version</name>
+        <value>0.94.6</value>
+    </property>
+    <property>
+        <name>hbase.client.ipc.pool.type</name>
+        <value>RoundRobinPool</value>
+    </property>
+    <property>
+        <name>hbase.client.ipc.pool.size</name>
+        <value>64</value>
+    </property>
+    <property>
+        <name>hbase.rpc.timeout</name>
+        <value>3600000</value>
+    </property>
+    <property>
+        <name>hbase.client.pause</name>
+        <value>20</value>
+    </property>
+    <property>
+        <name>hbase.client.retries.number</name>
+        <value>3</value>
+    </property>
+    <property>
+        <name>hbase.ipc.client.tcpnodelay</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>ipc.ping.interval</name>
+        <value>4000</value>
+    </property>
+
+    <!--HDFS local read optimize-->
+    <property>
+        <name>dfs.client.read.shortcircuit</name>
+        <value>true</value>
+    </property>
+    <property>
+        <name>dfs.client.read.shortcircuit.skip.checksum</name>
+        <value>true</value>
+    </property>
+</configuration>
