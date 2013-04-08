@@ -75,5 +75,43 @@ public class XAEvaluator {
 
     return yhm[0] + " " + hm[0] + ":" + minutesStr;
   }
-
+  
+  @FunctionEvaluator("like")
+  public static class Like extends BaseBasicEvaluator{
+    private final EvaluatorTypes.BasicEvaluator left;
+    private final EvaluatorTypes.BasicEvaluator right;
+    
+    public  Like(RecordPointer record, FunctionArguments args){
+      super(args.isOnlyConstants(), record);
+      left = args.getEvaluator(0);
+      right = args.getEvaluator(1);
+    }
+    
+    @Override
+    public ScalarValues.BooleanScalar eval(){
+      String left =this.left.eval().getAsStringValue().getString().toString();
+      String right= this.right.eval().getAsStringValue().getString().toString();
+      right = right.replace(".", "\\.").replace("?", ".").replace("%", ".*");
+      return new ScalarValues.BooleanScalar(left.matches(right));
+    }
+  }
+  
+  @FunctionEvaluator("substring")
+  public static class SubString extends BaseBasicEvaluator{
+    private final EvaluatorTypes.BasicEvaluator target;
+    private final EvaluatorTypes.BasicEvaluator beginIndex;
+    private final EvaluatorTypes.BasicEvaluator endIndex;
+    
+    public SubString(RecordPointer record, FunctionArguments args){
+      super(args.isOnlyConstants(), record);   
+      target = args.getEvaluator(0);
+      beginIndex = args.getEvaluator(1);
+      endIndex = args.getEvaluator(2);
+    }
+    
+    @Override
+    public StringValue eval(){
+      return new ScalarValues.StringScalar(target.eval().getAsStringValue().getString().toString().substring((int)beginIndex.eval().getAsNumeric().getAsLong(), (int)endIndex.eval().getAsNumeric().getAsLong()));      
+    }
+  }
 }

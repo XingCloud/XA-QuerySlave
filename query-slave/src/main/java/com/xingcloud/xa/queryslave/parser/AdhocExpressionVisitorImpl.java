@@ -40,6 +40,7 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
         put("equal", "==");
         put("greater than or equal to", ">=");
         put("less than or equal to", "<=");
+        put("like", "like");
       }
     };
 
@@ -160,6 +161,8 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
             le = functionRegistry.createExpression("min5", args);
         }else if (funcName.toLowerCase().equals("hour")){
             le = functionRegistry.createExpression("hour", args);
+        }else if (funcName.toLowerCase().equals("substring")){
+            le = functionRegistry.createExpression("substring", args);
         }
 
     }
@@ -200,7 +203,9 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
 
     @Override
     public void visit(Parenthesis parenthesis) {
-        //To change body of implemented methods use File | Settings | File Templates.
+      AdhocExpressionVisitorImpl adhocExpressionVisitor = new AdhocExpressionVisitorImpl();
+      parenthesis.getExpression().accept(adhocExpressionVisitor);
+      le = adhocExpressionVisitor.getLogicalExpression();  
     }
 
 
@@ -246,7 +251,7 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
 
     @Override
     public void visit(LikeExpression likeExpression) {
-        //To change body of implemented methods use File | Settings | File Templates.
+      visitBinaryBooleanExpression(likeExpression, "like");      
     }
 
     @Override

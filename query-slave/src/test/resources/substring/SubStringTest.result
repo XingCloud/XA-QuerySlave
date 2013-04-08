@@ -1,0 +1,36 @@
+{
+  "count" : {
+    "distinct" : {
+      "substring" : {
+        "donuts" : {
+          "id" : 2
+        }
+      }
+    }
+  },
+  "shortid" : "04"
+} 
+{
+  "count" : {
+    "distinct" : {
+      "substring" : {
+        "donuts" : {
+          "id" : 1
+        }
+      }
+    }
+  },
+  "shortid" : "05"
+} 
+{
+  "count" : {
+    "distinct" : {
+      "substring" : {
+        "donuts" : {
+          "id" : 2
+        }
+      }
+    }
+  },
+  "shortid" : "03"
+} 

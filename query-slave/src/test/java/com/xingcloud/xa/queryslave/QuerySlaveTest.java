@@ -32,8 +32,15 @@ import java.util.concurrent.LinkedBlockingQueue;
  * To change this template use File | Settings | File Templates.
  */
 public class QuerySlaveTest {
-
-  private boolean executePlan(String logicPlanFile) throws Exception{
+  
+  private boolean sqlToPlan(String sql) throws Exception{
+    DrillConfig config = DrillConfig.create();
+    LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql.replace("sof-dsk_deu","sof-dsk_deu_allversions"));
+    System.out.println(logicalPlan.toJsonString(config));
+    return true;
+  }
+  
+  private boolean executePlan(String logicPlanFile, String resultFile) throws Exception{
     DrillConfig config = DrillConfig.create();
     BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
     config.setSinkQueues(0, queue);
@@ -50,7 +57,7 @@ public class QuerySlaveTest {
       String record = new String((byte[])queue.poll());
       sb.append(record);
     }
-    String result = Files.toString(FileUtils.getResourceAsFile(logicPlanFile.replace("plan","result")), Charsets.UTF_8);
+    String result = Files.toString(FileUtils.getResourceAsFile(resultFile), Charsets.UTF_8);
 
     System.out.print(sb.toString());
     return sb.toString().equals(result);
@@ -85,10 +92,15 @@ public class QuerySlaveTest {
 
     return true; //todo
   }
-
+  
+  @Test
+  public void testOnlyMysql(){
+    
+  }
+  
   @Test
   public void testTransform() throws Exception{
-    assertTrue(executePlan("/TransformTest.plan"));
+    assertTrue(executePlan("/TransformTest.plan", "/TransformTest.result"));
   }
 
 //  @Test
@@ -161,6 +173,25 @@ public class QuerySlaveTest {
       }
     }
 
+  }
+  
+  @Test
+  public void testLike() throws Exception{
+    String sql = "select count(distinct substring(sof-dsk_deu.row, 0, 3)) from sof-dsk_deu " +
+      "where sof-dsk_deu.row>='20130205' and sof-dsk_deu.row<'20130206' " +
+      "and ((sof-dsk_deu.row LIKE '%visit.*%') or (sof-dsk_deu.row LIKE '%pay%')) " +
+      "and sof-dsk_deu.val.val > 10";
+    
+    String sql1 = "select sof-dsk_deu.row from sof-dsk_deu where (sof-dsk.row like '%visit%'  or sof-dsk_deu.row LIKE '%pay%')";
+    String sql2 = "select sof-dsk_deu.row from sof-dsk_deu where sof-dsk_deu.row>='20130205' and (sof-dsk.row like '%visit%'  or sof-dsk_deu.row LIKE '%pay%')";
+    sqlToPlan(sql);
+    
+    assertTrue(executePlan("/like/LikeTest.plan", "/like/LikeTest.result"));
+  }
+  
+  @Test 
+  public void testSubString() throws Exception{
+    assertTrue(executePlan("/substring/SubStringTest.plan", "/substring/SubStringTest.result"));      
   }
   
 }
