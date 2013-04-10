@@ -1,15 +1,16 @@
 package com.xingcloud.hbase.util;
 
-import com.xingcloud.hbase.filter.Filter;
-import com.xingcloud.hbase.filter.LongComparator;
 import com.xingcloud.hbase.filter.UidRangeFilter;
+import com.xingcloud.mongodb.MongoDBOperation;
+import com.xingcloud.xa.uidmapping.UidMappingUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hbase.filter.CompareFilter;
-import org.apache.hadoop.hbase.filter.FilterList;
-import org.apache.hadoop.hbase.filter.ValueFilter;
+import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 /**
@@ -67,58 +68,48 @@ public class HBaseEventUtils {
     return nrk;
   }
 
-  public static FilterList getFilterList( Filter filter, long startUid, long endUid, Deque<String> eventQueue) {
-    FilterList filterList = new FilterList();
-
-    org.apache.hadoop.hbase.filter.Filter uidRangeFilter = new UidRangeFilter(startUid, endUid, new LinkedList<String>(eventQueue));
-    filterList.addFilter(uidRangeFilter);
-
-    if (filter != null && filter != Filter.ALL) {
-      org.apache.hadoop.hbase.filter.Filter valueFilter = null;
-      switch (filter.getOperator()) {
-        case EQ:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.EQUAL, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.EQUAL + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
-        case GE:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.GREATER_OR_EQUAL + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
-        case GT:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.GREATER, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.GREATER + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
-        case LE:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.LESS_OR_EQUAL + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
-        case LT:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.LESS, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.LESS + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
-        case NE:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.NOT_EQUAL, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.NOT_EQUAL + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
-        case BETWEEN:
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(filter.getValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.GREATER_OR_EQUAL + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          valueFilter = new ValueFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new LongComparator(Bytes.toBytes(filter.getExtraValue())));
-          logger.info("Init hbase value filter of " + CompareFilter.CompareOp.LESS_OR_EQUAL + "\t" + filter.getValue() + "\t" + Bytes.toBytes(filter.getValue()));
-          filterList.addFilter(valueFilter);
-          break;
+  public static List<String> getSortedEvents(String pID, List<String> eventFilterList) throws IOException {
+      Set<String> events = new HashSet<String>();
+      for (String eventFilter : eventFilterList) {
+          events.addAll(MongoDBOperation.getEventSet(pID, eventFilter));
       }
-      logger.info("Using filter of " + filter.toString());
-    }
-    return filterList;
+      return sortEventList(new ArrayList<String>(events));
   }
+
+  public static Pair<byte[], byte[]> getStartEndRowKey(String startDate, String endDate, List<String> sortedEvents, long startBucket, long offsetBucket) throws UnsupportedEncodingException {
+    long startUid = startBucket << 32;
+    long endBucket = offsetBucket + startBucket;
+    long endUid = 0l;
+    if (endBucket >= 256) {
+      endUid = (1l << 40) - 1l;
+    } else {
+      endUid = endBucket << 32;
+    }
+
+    byte[] realSK = UidMappingUtil.getInstance().getRowKeyV2(startDate.replace("-", ""), sortedEvents.get(0), startUid);
+    byte[] realEK = UidMappingUtil.getInstance().getRowKeyV2(endDate.replace("-", ""), sortedEvents.get(sortedEvents.size() - 1), endUid);
+    return new Pair<byte[], byte[]>(realSK, realEK);
+  }
+
+
+  public static Filter getRowKeyFilter(List<String> sortedEvents) {
+      Deque<String> eventQueue = new LinkedList<String>(sortedEvents);
+      Pair<Long, Long> up = getStartEndUidPair();
+      return new UidRangeFilter(up.getFirst(), up.getSecond(), new LinkedList<String>(eventQueue));
+  }
+
+  public static Filter getRowKeyFilter(List<String> sortedEvents, long startUid, long endUid) {
+    Deque<String> eventQueue = new LinkedList<String>(sortedEvents);
+    return new UidRangeFilter(startUid, endUid, new LinkedList<String>(eventQueue));
+  }
+
+
+  public static Pair<Long, Long> getStartEndUidPair() {
+    long startUid = 0l << 32;
+    long endUid = (1l << 40) - 1l;
+
+    return new Pair<Long, Long>(startUid, endUid);
+    }
 
   /**
    * 按照hbase里面event的排序来排这个eventlist ,加上0xff进行字典排序。
@@ -136,5 +127,7 @@ public class HBaseEventUtils {
 
     return results;
   }
+
+
 
 }

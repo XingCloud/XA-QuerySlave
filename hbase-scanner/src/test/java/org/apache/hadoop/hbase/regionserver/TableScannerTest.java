@@ -1,17 +1,19 @@
 package org.apache.hadoop.hbase.regionserver;
 
 
-import com.xingcloud.hbase.filter.Filter;
+import com.xingcloud.hbase.filter.LongComparator;
 import com.xingcloud.util.Base64Util;
 import com.xingcloud.util.HashFunctions;
-import com.xingcloud.xa.hash.HashUtil;
 import com.xingcloud.xa.uidmapping.UidMappingUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterList;
+import org.apache.hadoop.hbase.filter.ValueFilter;
 import org.apache.hadoop.hbase.io.hfile.Compression;
 import org.apache.hadoop.hbase.regionserver.metrics.SchemaMetrics;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -184,7 +186,10 @@ public class TableScannerTest {
     long startUid = 0;
     long endUid = md5Head << 32;
 
-    FilterList uidFilterList = HBaseEventUtils.getFilterList(null, startUid, endUid, new LinkedList<String>(sortEvents));
+    FilterList uidFilterList = new FilterList();
+    Filter uidFilter = HBaseEventUtils.getRowKeyFilter(sortEvents, startUid, endUid);
+    uidFilterList.addFilter(uidFilter);
+
     TableScanner uidFilterTableScanner = new TableScanner(date, nextDate, tableName, uidFilterList, false, false);
     List<KeyValue> results = new ArrayList<KeyValue>();
     while (uidFilterTableScanner.next(results)) ;
@@ -226,7 +231,10 @@ public class TableScannerTest {
     hBaseAdmin.flush(tableName);
     IOUtils.closeStream(hBaseAdmin);
 
-    FilterList uidFilterList = HBaseEventUtils.getFilterList(null, startUid, endUid, new LinkedList<String>(sortEvents));
+    FilterList uidFilterList = new FilterList();
+    Filter uidFilter = HBaseEventUtils.getRowKeyFilter(sortEvents, startUid, endUid);
+    uidFilterList.addFilter(uidFilter);
+
     TableScanner uidFilterTableScanner = new TableScanner(date, nextDate, tableName, uidFilterList, false, false);
     List<KeyValue> results = new ArrayList<KeyValue>();
     while (uidFilterTableScanner.next(results)) ;
@@ -261,9 +269,11 @@ public class TableScannerTest {
 
     putFilterDataIntoHBase(sortEvents, date, count);
 
-    Filter filter = new Filter(Constants.Operator.EQ, equalValue);
-    FilterList eqFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+
+    FilterList eqFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.EQUAL, new LongComparator(Bytes.toBytes(equalValue)));
+    eqFilterList.addFilter(valFilter);
+
     TableScanner eqOperatorTableScanner = new TableScanner(date, nextDate, tableName, eqFilterList, false, true);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
@@ -295,14 +305,16 @@ public class TableScannerTest {
 
     putFilterDataIntoHBase(sortEvents, date, count);
 
-    Filter filter = new Filter(Constants.Operator.EQ, equalValue);
+
     //flush memstore
     HBaseAdmin hBaseAdmin = new HBaseAdmin(conf);
     hBaseAdmin.flush(tableName);
     IOUtils.closeStream(hBaseAdmin);
 
-    FilterList eqFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList eqFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.EQUAL, new LongComparator(Bytes.toBytes(equalValue)));
+    eqFilterList.addFilter(valFilter);
+
     TableScanner eqOperatorTableScanner = new TableScanner(date, nextDate, tableName, eqFilterList, true, false);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
@@ -331,8 +343,9 @@ public class TableScannerTest {
 
     putFilterDataIntoHBase(sortEvents, date, count);
 
-    Filter filter = new Filter(Constants.Operator.GE, GEValue);
-    FilterList geFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid, new LinkedList<String>(sortEvents));
+    FilterList geFilterList = new FilterList();
+    Filter filter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(GEValue)));
+    geFilterList.addFilter(filter);
 
     TableScanner geOperatorTableScanner = new TableScanner(date, nextDate, tableName, geFilterList, false, true);
     List<KeyValue> results = new ArrayList<KeyValue>();
@@ -363,9 +376,9 @@ public class TableScannerTest {
     hBaseAdmin.flush(tableName);
     IOUtils.closeStream(hBaseAdmin);
 
-    Filter filter = new Filter(Constants.Operator.GE, GEValue);
-    FilterList geFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList geFilterList = new FilterList();
+    Filter filter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(GEValue)));
+    geFilterList.addFilter(filter);
 
     TableScanner geOperatorTableScanner = new TableScanner(date, nextDate, tableName, geFilterList, true, false);
     List<KeyValue> results = new ArrayList<KeyValue>();
@@ -392,12 +405,13 @@ public class TableScannerTest {
 
     putFilterDataIntoHBase(sortEvents, date, count);
 
-    Filter filter = new Filter(Constants.Operator.GT, GTValue);
 
-    FilterList geFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList gtFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.GREATER, new LongComparator(Bytes.toBytes(GTValue)));
+    gtFilterList.addFilter(valFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner gtOperatorTableScanner = new TableScanner(date, nextDate, tableName, geFilterList, false, true);
+    TableScanner gtOperatorTableScanner = new TableScanner(date, nextDate, tableName, gtFilterList, false, true);
     while (gtOperatorTableScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - GTValue - 1), results.size());
     gtOperatorTableScanner.close();
@@ -425,9 +439,11 @@ public class TableScannerTest {
     hBaseAdmin.flush(tableName);
     IOUtils.closeStream(hBaseAdmin);
 
-    Filter filter = new Filter(Constants.Operator.GT, GTValue);
-    FilterList geFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+
+    FilterList geFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.GREATER, new LongComparator(Bytes.toBytes(GTValue)));
+    geFilterList.addFilter(valFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner gtOperatorTableScanner = new TableScanner(date, nextDate, tableName, geFilterList, true, false);
     while (gtOperatorTableScanner.next(results)) ;
@@ -452,12 +468,13 @@ public class TableScannerTest {
     String nextDate = "20130102";
 
     putFilterDataIntoHBase(sortEvents, date, count);
-    Filter filter = new Filter(Constants.Operator.LE, LEValue);
 
-    FilterList LEFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList leFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new LongComparator(Bytes.toBytes(LEValue)));
+    leFilterList.addFilter(valFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner leOperatorTableScanner = new TableScanner(date, nextDate, tableName, LEFilterList, false, true);
+    TableScanner leOperatorTableScanner = new TableScanner(date, nextDate, tableName, leFilterList, false, true);
     while (leOperatorTableScanner.next(results)) ;
     assertEquals(sortEvents.size() * (LEValue + 1), results.size());
     leOperatorTableScanner.close();
@@ -485,9 +502,10 @@ public class TableScannerTest {
     hBaseAdmin.flush(tableName);
     IOUtils.closeStream(hBaseAdmin);
 
-    Filter filter = new Filter(Constants.Operator.LE, LEValue);
-    FilterList leFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList leFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new LongComparator(Bytes.toBytes(LEValue)));
+    leFilterList.addFilter(valFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner leOperatorTableScanner = new TableScanner(date, nextDate, tableName, leFilterList, true, false);
     while (leOperatorTableScanner.next(results)) ;
@@ -512,12 +530,13 @@ public class TableScannerTest {
     String nextDate = "20130102";
 
     putFilterDataIntoHBase(sortEvents, date, count);
-    Filter filter = new Filter(Constants.Operator.LT, LTValue);
 
-    FilterList leFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList ltFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.LESS, new LongComparator(Bytes.toBytes(LTValue)));
+    ltFilterList.addFilter(valFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner ltOperatorTableScanner = new TableScanner(date, nextDate, tableName, leFilterList, false, true);
+    TableScanner ltOperatorTableScanner = new TableScanner(date, nextDate, tableName, ltFilterList, false, true);
     while (ltOperatorTableScanner.next(results)) ;
     assertEquals(sortEvents.size() * LTValue, results.size());
     ltOperatorTableScanner.close();
@@ -547,10 +566,10 @@ public class TableScannerTest {
     IOUtils.closeStream(hBaseAdmin);
 
 
-    Filter filter = new Filter(Constants.Operator.LT, LTValue);
+    FilterList ltFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.LESS, new LongComparator(Bytes.toBytes(LTValue)));
+    ltFilterList.addFilter(valFilter);
 
-    FilterList ltFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner ltOperatorTableScanner = new TableScanner(date, nextDate, tableName, ltFilterList, true, false);
     while (ltOperatorTableScanner.next(results)) ;
@@ -576,10 +595,11 @@ public class TableScannerTest {
 
     putFilterDataIntoHBase(sortEvents, date, count);
 
-    Filter filter = new Filter(Constants.Operator.NE, NEValue);
 
-    FilterList neFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList neFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.NOT_EQUAL, new LongComparator(Bytes.toBytes(NEValue)));
+    neFilterList.addFilter(valFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner neOperatorTableScanner = new TableScanner(date, nextDate, tableName, neFilterList, false, true);
     while (neOperatorTableScanner.next(results)) ;
@@ -610,10 +630,10 @@ public class TableScannerTest {
     IOUtils.closeStream(hBaseAdmin);
 
 
-    Filter filter = new Filter(Constants.Operator.NE, NEValue);
+    FilterList neFilterList = new FilterList();
+    Filter valFilter = new ValueFilter(CompareFilter.CompareOp.NOT_EQUAL, new LongComparator(Bytes.toBytes(NEValue)));
+    neFilterList.addFilter(valFilter);
 
-    FilterList neFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner neOperatorTableScanner = new TableScanner(date, nextDate, tableName, neFilterList, true, false);
     while (neOperatorTableScanner.next(results)) ;
@@ -640,10 +660,13 @@ public class TableScannerTest {
 
     putFilterDataIntoHBase(sortEvents, date, count);
 
-    Filter filter = new Filter(Constants.Operator.BETWEEN, leftValue, rightValue);
 
-    FilterList btFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
+    FilterList btFilterList = new FilterList();
+    Filter leftValueFilter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(leftValue)));
+    Filter rightValueFilter = new ValueFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new LongComparator(Bytes.toBytes(rightValue)));
+    btFilterList.addFilter(leftValueFilter);
+    btFilterList.addFilter(rightValueFilter);
+
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner btOperatorTableScanner = new TableScanner(date, nextDate, tableName, btFilterList, false, true);
     while (btOperatorTableScanner.next(results)) ;
@@ -675,10 +698,12 @@ public class TableScannerTest {
     IOUtils.closeStream(hBaseAdmin);
 
 
-    Filter filter = new Filter(Constants.Operator.BETWEEN, leftValue, rightValue);
+    FilterList btFilterList = new FilterList();
+    Filter leftValueFilter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(leftValue)));
+    Filter rightValueFilter = new ValueFilter(CompareFilter.CompareOp.LESS_OR_EQUAL, new LongComparator(Bytes.toBytes(rightValue)));
+    btFilterList.addFilter(leftValueFilter);
+    btFilterList.addFilter(rightValueFilter);
 
-    FilterList btFilterList = HBaseEventUtils.getFilterList(filter, startUid, endUid,
-            new LinkedList<String>(sortEvents));
     List<KeyValue> results = new ArrayList<KeyValue>();
     TableScanner btOperatorTableScanner = new TableScanner(date, nextDate, tableName, btFilterList, true, false);
     while (btOperatorTableScanner.next(results)) ;
