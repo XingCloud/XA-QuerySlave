@@ -2,13 +2,16 @@ package com.xingcloud.xa.queryslave.parser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.statement.select.Union;
 import org.apache.drill.common.expression.*;
 import org.apache.drill.common.logical.JSONOptions;
 import org.apache.drill.common.logical.data.*;
 import org.apache.drill.common.logical.data.Distinct;
 import org.apache.drill.common.logical.data.Join;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.SelectVisitor;
+import net.sf.jsqlparser.statement.select.SelectItem;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,5 @@
 package org.apache.drill.exec.ref.rse;
+import com.xingcloud.hbase.util.HBaseEventUtils;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.ref.RecordIterator;
 import org.apache.drill.exec.ref.RecordPointer;
@@ -10,6 +11,7 @@ import org.apache.drill.exec.ref.values.DataValue;
 import org.apache.drill.exec.ref.values.ScalarValues;
 import org.apache.drill.exec.ref.values.SimpleMapValue;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.regionserver.TableScanner;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
@@ -78,7 +80,10 @@ public class HBaseRecordReader implements RecordReader {
         }
 
     }
-
+  
+  public  HBaseRecordReader(String startKey, String endKey, Filter filter, ROP parent, SchemaPath rootPath){
+    TableScanner tableScanner = new TableScanner(startKey, endKey, getTableName(rootPath), filter, false, false);    
+  }
     private class NodeIter implements RecordIterator {
 
 
@@ -170,8 +175,8 @@ public class HBaseRecordReader implements RecordReader {
         byte[] rk = kv.getRow();
 
         /* Set uid */
-        long uid = getUidOfLongFromDEURowKey(rk);
-        int innerUid = getInnerUidFromSamplingUid(uid);
+        long uid = HBaseEventUtils.getUidOfLongFromDEURowKey(rk);
+        int innerUid = HBaseEventUtils.getInnerUidFromSamplingUid(uid);
         DataValue uidDV = new ScalarValues.IntegerScalar(innerUid);
         map.setByName("uid", uidDV);
         /* Set event value */
@@ -179,7 +184,7 @@ public class HBaseRecordReader implements RecordReader {
         DataValue valDV = new ScalarValues.LongScalar(eventVal);
         map.setByName("value", valDV);
         /* Set event name */
-        String event = getEventFromDEURowKey(rk);
+        String event = HBaseEventUtils.getEventFromDEURowKey(rk);
         String[] fields = event.split("\\.");
         int i = 0;
         for (;i<fields.length;i++) {
@@ -199,33 +204,6 @@ public class HBaseRecordReader implements RecordReader {
         //LOG.info(map.toString());
         //System.out.println(innerUid+"\t"+eventVal+"\t"+ts);
         return map;
-    }
-
-    public  long getUidOfLongFromDEURowKey(byte[] rowKey) {
-        byte[] uid = new byte[8];
-        int i = 0;
-        for (; i < 3; i++) {
-            uid[i] = 0;
-        }
-
-        for (int j = rowKey.length - 5; j < rowKey.length; j++) {
-            uid[i++] = rowKey[j];
-        }
-
-        return Bytes.toLong(uid);
-    }
-
-    public int getInnerUidFromSamplingUid(long suid) {
-        return (int) (0xffffffffl & suid);
-    }
-
-    public String getEventFromDEURowKey(byte[] rowKey) {
-        byte[] eventBytes = Arrays.copyOfRange(rowKey, 8, rowKey.length - 6);
-        return Bytes.toString(eventBytes);
-    }
-
-    public String getTableName(SchemaPath rootPath) {
-        return rootPath.getPath().toString().replace("xadrill", "-");
     }
 
     public String calDay(String date, int dis) throws ParseException {
@@ -288,6 +266,10 @@ public class HBaseRecordReader implements RecordReader {
         return endEvent.toString();
     }
 
+  public String getTableName(SchemaPath rootPath) {
+    return rootPath.getPath().toString().replace("xadrill", "-");
+  }
+  
     public static void main(String[] args) throws Exception{
         //HBaseRecordReader hBaseRecordReader = new HBaseRecordReader();
     }

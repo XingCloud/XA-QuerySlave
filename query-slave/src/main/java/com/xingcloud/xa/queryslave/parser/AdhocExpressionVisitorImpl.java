@@ -163,6 +163,8 @@ public class AdhocExpressionVisitorImpl implements ExpressionVisitor {
             le = functionRegistry.createExpression("hour", args);
         }else if (funcName.toLowerCase().equals("substring")){
             le = functionRegistry.createExpression("substring", args);
+        }else if (funcName.toLowerCase().equals("getUid")){
+            le = functionRegistry.createExpression("getUid", args);
         }
 
     }

@@ -22,7 +22,8 @@ public class XAFunctions implements CallProvider{
         FunctionDefinition.operator("min5",new ArgumentValidators.AnyTypeAllowed(1),new OutputTypeDeterminer.SameAsFirstInput(),"min5"),
         FunctionDefinition.operator("hour",new ArgumentValidators.AnyTypeAllowed(1),new OutputTypeDeterminer.SameAsFirstInput(),"hour"),
         FunctionDefinition.operator("like",new ArgumentValidators.ComparableArguments(2), OutputTypeDeterminer.FIXED_BOOLEAN, "like"), 
-        FunctionDefinition.operator("substring", new ArgumentValidators.AnyTypeAllowed(3), new OutputTypeDeterminer.SameAsFirstInput(), "substring")
+        FunctionDefinition.operator("substring", new ArgumentValidators.AnyTypeAllowed(3), new OutputTypeDeterminer.SameAsFirstInput(), "substring"),
+        FunctionDefinition.operator("getUid", new ArgumentValidators.AnyTypeAllowed(1), new OutputTypeDeterminer.SameAsFirstInput(), "getUid")
     };
   }
 

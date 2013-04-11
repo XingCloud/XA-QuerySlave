@@ -1,5 +1,6 @@
 package org.apache.drill.exec.ref.eval.fn;
 
+import com.xingcloud.hbase.util.HBaseEventUtils;
 import org.apache.drill.exec.ref.RecordPointer;
 import org.apache.drill.exec.ref.eval.BaseBasicEvaluator;
 import org.apache.drill.exec.ref.eval.EvaluatorTypes;
@@ -112,6 +113,21 @@ public class XAEvaluator {
     @Override
     public StringValue eval(){
       return new ScalarValues.StringScalar(target.eval().getAsStringValue().getString().toString().substring((int)beginIndex.eval().getAsNumeric().getAsLong(), (int)endIndex.eval().getAsNumeric().getAsLong()));      
+    }
+  }
+  
+  @FunctionEvaluator("getUid")
+  public static class GetUid extends BaseBasicEvaluator{
+    private final EvaluatorTypes.BasicEvaluator rowkey;
+    
+    public GetUid(RecordPointer record, FunctionArguments args){
+      super(args.isOnlyConstants(), record);
+      rowkey = args.getEvaluator(0);
+    }
+    
+    @Override
+    public ScalarValues.IntegerScalar eval(){
+      return new ScalarValues.IntegerScalar(HBaseEventUtils.getInnerUidFromSamplingUid(HBaseEventUtils.getUidOfLongFromDEURowKey(rowkey.eval().getAsStringValue().getString().toString().getBytes())));
     }
   }
 }

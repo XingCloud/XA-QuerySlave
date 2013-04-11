@@ -56,27 +56,44 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                     JSONOptions selection = null;
                     Filter filter = null;
                     /* Combine filter and scan to mysql scanner */
+                    List<String> sqls = null;
                     for (LogicalOperator operator : source) {
                         if (operator instanceof Filter) {
                             /* Should have only one filter */
                             filter = (Filter) operator;
-                            String sql = changeToSQL((Scan) source, filter);
-                            selection = mapper.readValue(new String("{\"sql\":\"" + sql + "\"}").getBytes(), JSONOptions.class);
+                            sqls = changeToSQL((Scan) source, filter);
                         }
                     }
-
+                    String field =  ((Scan) source).getOutputReference().getPath().toString() ;
                     if (filter != null) {
-                        source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
+                        selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(0) + "\"}").getBytes(), JSONOptions.class);
+                        LogicalOperator op1 = new Scan(((Scan) source).getStorageEngine(), selection, new FieldReference(field));
+                        newSources.add((SourceOperator) op1);
+                        if (sqls.size() > 1) {
+                            Join join = null;
+                            String relationship = "==";
+                            JoinCondition[] conds = null;
+                            for (int i = 1; i < sqls.size(); i++) {
+                                selection = mapper.readValue(new String("{\"sql\":\"" + sqls.get(i) + "\"}").getBytes(), JSONOptions.class);
+                                LogicalOperator op2 = new Scan("mysql", selection, new FieldReference(field));
+                                newSources.add((SourceOperator) op2);
+                                JoinCondition jc = new JoinCondition(relationship, new FieldReference(field+".uid"), new FieldReference(field+".uid"));
+                                conds = new JoinCondition[1];
+                                conds[0] = jc;
+                                join = new Join(op2, op1, conds, Join.JoinType.INNER.toString());
+                                op1 = join;
+                            }
+                        }
                         List<LogicalOperator> filterChildren = filter.getAllSubscribers();
                         for (LogicalOperator child : filterChildren) {
                             if (child instanceof Join) {
                                 if (((Join) child).getLeft() == filter) {
-                                    ((Join) child).setLeft(source);
+                                    ((Join) child).setLeft(op1);
                                 } else if (((Join) child).getRight() == filter) {
-                                    ((Join) child).setRight(source);
+                                    ((Join) child).setRight(op1);
                                 }
                             } else if (child instanceof SingleInputOperator) {
-                                ((SingleInputOperator) child).setInput(source);
+                                ((SingleInputOperator) child).setInput(op1);
                             }
                         }
                     }
@@ -109,9 +126,9 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                             }
                         }
                     }
-
+                    newSources.add(source);
                 }
-                newSources.add(source);
+
             }
         }
         List<LogicalOperator> operators = getLogicalOperatorsFromSource(newSources);
@@ -120,8 +137,8 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
 
     private JSONObject getInitHBaseScanInfo() {
         JSONObject hbaseScanInfo = new JSONObject();
-        for (int i=0; i<5; i++) {
-            hbaseScanInfo.put("l"+i, "*");
+        for (int i = 0; i < 5; i++) {
+            hbaseScanInfo.put("l" + i, "*");
         }
         return hbaseScanInfo;
     }
@@ -192,7 +209,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         }
     }
 
-    private LogicalPlan optimizeLogicalPlanStructure(LogicalPlan plan) {
+    public LogicalPlan optimizeLogicalPlanStructure(LogicalPlan plan) {
         OperatorGraph graph = plan.getGraph();
         AdjacencyList<OperatorGraph.OpNode> adjacencyList = graph.getAdjList();
 
@@ -208,7 +225,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         }
 
         if (filterNode != null) {
-            Filter filter =  (Filter) filterNode.getNodeValue();
+            Filter filter = (Filter) filterNode.getNodeValue();
             List<LogicalOperator> filterChildren = filter.getAllSubscribers();
             /* Check if parent is source operator */
             LogicalOperator filterParent = filter.getInput();
@@ -224,22 +241,20 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                     for (LogicalOperator children : sourceChildren) {
                         if (children instanceof SingleInputOperator) {
                             ((SingleInputOperator) children).setInput(optimizedFilter);
-                        } else if (children instanceof Join){
+                        } else if (children instanceof Join) {
                             /* Join condition should match join relation order, a inner join b on a.val=b.val */
                             JoinCondition condition = ((Join) children).getConditions()[0];
-                            String rootPathOfCondition = ((FieldReference)condition.getLeft()).getRootSegment().
+                            String rootPathOfCondition = ((FieldReference) condition.getLeft()).getRootSegment().
                                     getNameSegment().getPath().toString();
                             String rootPathOfRelation = ((Scan) source).getOutputReference().getPath().toString();
                             if (rootPathOfCondition.equals(rootPathOfRelation)) {
                                 ((Join) children).setLeft(optimizedFilter);
-                            } else  {
+                            } else {
                                 ((Join) children).setRight(optimizedFilter);
                             }
 
                         }
                     }
-
-
                     for (LogicalOperator filterChild : filterChildren) {
                         if (filterChild instanceof SingleInputOperator) {
                             ((SingleInputOperator) filterChild).setInput(filterParent);
@@ -302,74 +317,106 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         throw new DrillRuntimeException("Can't parse Logical Expression: " + logicalExpression);
     }
 
-    private String changeToSQL(Scan scan, Filter filter) {
+
+    private List<String> changeToSQL(Scan scan, Filter filter) {
         String dataBaseName = scan.getOutputReference().getPath().toString();
+        String database = dataBaseName.replace("xadrill", "-");
         LogicalExpression expr = filter.getExpr();
         Set<String> tables = new HashSet<String>();
-        String where = getSQLInfoFilter(tables, expr);
-        StringBuilder sql = new StringBuilder("SELECT ");
-
-        boolean firstTime = true;
-        for (String table : tables) {
-            if(!firstTime) {
-                sql.append(",");
-            }
-            sql.append(table).append(".").append("uid");
-            sql.append(",");
-            sql.append(table).append(".").append("val");
-            firstTime = false;
+        Map<String, String> sqlsInfo = getSQLInfoFilters(expr);
+        List<String> sqls = new ArrayList<String>();
+        for (Map.Entry<String, String> entry : sqlsInfo.entrySet()) {
+            String tableName = entry.getKey();
+            StringBuilder sql = new StringBuilder("SELECT ").
+                    append("uid AS uid,").
+                    append("val AS ").
+                    append(tableName).
+                    append(" FROM `").
+                    append(database).
+                    append("`.`").
+                    append(tableName).
+                    append("` AS `").
+                    append(dataBaseName).
+                    append("` WHERE ").
+                    append(entry.getValue())
+                    ;
+            sqls.add( sql.toString());
         }
-        sql.append(" FROM ");
-        firstTime = true;
-        for (String table : tables) {
-            if (!firstTime) {
-                sql.append(",");
-            }
-            sql.append(table);
-        }
-        sql.append(" WHERE ");
-        sql.append(where).append(";");
-
-        System.out.println(sql.toString());
-        return sql.toString();
+        return sqls;
     }
 
-    private String getSQLInfoFilter(Set<String> tables, LogicalExpression expr) {
+
+    private Map<String, String> getSQLInfoFilters(LogicalExpression expr) {
+        Map<String, String> filters = new HashMap<String, String>();
+
         if (expr instanceof FunctionCall) {
-            /* Right now we just have binary operator */
             ImmutableList<LogicalExpression> argsTmp = ((FunctionCall) expr).args;
             FunctionDefinition definition = ((FunctionCall) expr).getDefinition();
-            String left = getSQLInfoFilter(tables, argsTmp.get(0));
-            String right = getSQLInfoFilter(tables, argsTmp.get(1));
-            if (definition.getName().equals("and")) {
-                return left +  " AND " + right;
-            } else if (definition.getName().equals("or")) {
-                return left + " OR " + right;
-            } else if (definition.getName().equals("equal")) {
-                return left + "=" + right;
-            } else if (definition.getName().equals("greater than")) {
-                return left + ">" + right;
-            } else if (definition.getName().equals("greater than or equal to")) {
-                return left + ">=" + right;
-            } else if (definition.getName().equals("less than")) {
-                return left + "<" + right;
-            } else if (definition.getName().equals("less than or equal to")) {
-                return left + "<=" + right;
-            }
-        } else if (expr instanceof FieldReference) {
+            Map<String, String> left = getSQLInfoFilters(argsTmp.get(0));
+            Map<String, String> right = getSQLInfoFilters(argsTmp.get(1));
 
+            if (definition.getName().equals("and")) {
+                collectToFilters(filters, left);
+                collectToFilters(filters, right);
+            } else {
+                if (!(left.size() == right.size() && left.size() == 1)) {
+                    throw new DrillRuntimeException("Not support yet " + expr + " to sql!");
+                }
+                String tableNameLeft = left.keySet().iterator().next();
+                String tableNameRight = right.keySet().iterator().next();
+
+                if (!(tableNameLeft.equals(tableNameRight) || null == tableNameRight)) {
+                    throw new DrillRuntimeException("Not support yet " + expr + " to sql!");
+                }
+                if (definition.getName().equals("or")) {
+                    throw new DrillRuntimeException("Not support yet " + expr + " to sql!");
+                } else if (definition.getName().equals("equal")) {
+                    collectToFilters(filters, tableNameLeft, left.get(tableNameLeft) + "=" + right.get(tableNameRight));
+                } else if (definition.getName().equals("greater than")) {
+                    collectToFilters(filters, tableNameLeft, left.get(tableNameLeft) + ">" + right.get(tableNameRight));
+                } else if (definition.getName().equals("greater than or equal to")) {
+                    collectToFilters(filters, tableNameLeft, left.get(tableNameLeft) + ">=" + right.get(tableNameRight));
+                } else if (definition.getName().equals("less than")) {
+                    collectToFilters(filters, tableNameLeft, left.get(tableNameLeft) + "<" + right.get(tableNameRight));
+                } else if (definition.getName().equals("less than or equal to")) {
+                    collectToFilters(filters, tableNameLeft, left.get(tableNameLeft) + "<=" + right.get(tableNameRight));
+                }
+            }
+
+        } else if (expr instanceof FieldReference) {
             String ref = ((FieldReference) expr).getPath().toString();
             String tableName = ref.split("\\.")[1];
-            tables.add(tableName);
-            return tableName + ".val";
+            collectToFilters(filters, tableName,"val");
+
         } else if (expr instanceof ValueExpressions.LongExpression) {
-            return String.valueOf(((ValueExpressions.LongExpression) expr).getLong());
+            collectToFilters(filters, null, String.valueOf(((ValueExpressions.LongExpression) expr).getLong()));
         } else if (expr instanceof ValueExpressions.QuotedString) {
-            return "'" + ((ValueExpressions.QuotedString) expr).value + "'";
+            String str = "'" + ((ValueExpressions.QuotedString) expr).value + "'";
+            collectToFilters(filters, null, str);
         } else if (expr instanceof ValueExpressions.DoubleExpression) {
-            return String.valueOf(((ValueExpressions.DoubleExpression) expr).getDouble());
+            collectToFilters(filters, null, String.valueOf(((ValueExpressions.DoubleExpression) expr).getDouble()));
+        } else {
+            throw new DrillRuntimeException("Can't parse LogicalExpression " + expr + " to sql!");
         }
-        throw new DrillRuntimeException("Can't parse LogicalExpression " + expr + " to sql!");
+        return filters;
     }
 
+    private Map<String, String> collectToFilters(Map<String, String> dst, Map<String, String> src) {
+        for (Map.Entry<String, String> entry : src.entrySet()) {
+            collectToFilters(dst, entry.getKey(), entry.getValue());
+        }
+        return dst;
+    }
+
+    private Map<String, String> collectToFilters(Map<String, String> dst, String tableName, String condition) {
+
+        String value = null;
+        if (dst.containsKey(tableName)) {
+            value = dst.get(tableName) + " AND " + condition;
+        } else {
+            value = condition;
+        }
+        dst.put(tableName, value);
+        return dst;
+    }
 }

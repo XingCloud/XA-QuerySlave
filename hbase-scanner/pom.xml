@@ -31,9 +31,21 @@
             <artifactId>hashutil</artifactId>
             <version>1.0.0</version>
         </dependency>
-
-
-
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongo-java-driver</artifactId>
+            <version>2.11.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.directory.studio</groupId>
+            <artifactId>org.apache.commons.collections</artifactId>
+            <version>3.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xingcloud</groupId>
+            <artifactId>base</artifactId>
+            <version>0.0.4</version>
+        </dependency>
     </dependencies>
 
 </project>

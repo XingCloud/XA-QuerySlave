@@ -3,3 +3,4 @@
 query-slave/target/*
 query-slave/.idea/*
 .svn
+*.class
