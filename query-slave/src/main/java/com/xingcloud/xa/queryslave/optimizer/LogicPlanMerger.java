@@ -2,13 +2,12 @@ package com.xingcloud.xa.queryslave.optimizer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xingcloud.hbase.util.HBaseEventUtils;
-import org.apache.drill.common.expression.FieldReference;
-import org.apache.drill.common.expression.FunctionCall;
-import org.apache.drill.common.expression.LogicalExpression;
-import org.apache.drill.common.expression.ValueExpressions;
+import org.apache.drill.common.config.DrillConfig;
+import org.apache.drill.common.expression.*;
 import org.apache.drill.common.logical.JSONOptions;
 import org.apache.drill.common.logical.LogicalPlan;
 import org.apache.drill.common.logical.data.*;
+import org.apache.drill.exec.ref.values.StringValue;
 import org.json.simple.JSONObject;
 
 import java.util.*;
@@ -35,43 +34,47 @@ public class LogicPlanMerger {
     List<LogicalOperator> mysqlScans = new ArrayList<LogicalOperator>();
     List<LogicalOperator> newtLogicalOperators = new ArrayList<LogicalOperator>();
 
-    String minStartkey = "21000101";
-    String maxEndKey = "19710101";
     List<String> rowLikes = new ArrayList<String>();
     String hbaseTableName = null;
-    
+    LogicalExpression allHBaseFilterExpr = null; // combine each filter expression with 'or'
+    FunctionRegistry functionRegistry = new FunctionRegistry(DrillConfig.create());
+      
     for (LogicalPlan _logicalPlan: logicalPlans){      
       LogicalPlan logicalPlan = LogicalPlanOptimizer.getInstance().optimizeLogicalPlanStructure(_logicalPlan);
+      System.out.println(logicalPlan.toJsonString(DrillConfig.create()));
       newtLogicalOperators.addAll(logicalPlan.getSortedOperators());
       Collection<SourceOperator> sourceOperators = logicalPlan.getGraph().getSources();
-      
+
+        
       for(LogicalOperator logicalOperator: sourceOperators){       
         if(logicalOperator instanceof Scan){
           Scan scan = (Scan)logicalOperator;
-          Filter originFilter = getScanFilter(logicalOperator);
+          Filter scanFilter = getScanFilter(logicalOperator);
           if (scan.getStorageEngine().equals("hbase")){
+            
             //check if we scan the same hbase table
             if(hbaseTableName == null){
               hbaseTableName = scan.getOutputReference().getPath().toString();
-            }
+            }        
             if (! hbaseTableName.equals(scan.getOutputReference().getPath().toString())) throw new Exception("");
             
-            String starKey = "19710101";
-            String endKey ="21000101";
-            List<String> _rowLikes = new ArrayList<String>();
-            
-            if (originFilter != null){
-              Map<String, Object> hbaseScanInfo = new HashMap<String, Object>();
-              hbaseScanInfo.put("rowLikes", new ArrayList<String>());
-              getHBaseScanInfo(originFilter.getExpr(), hbaseScanInfo);
-              starKey = (String)hbaseScanInfo.get("startKey");
-              endKey = (String)hbaseScanInfo.get("endKey");
-              _rowLikes = (List<String>)hbaseScanInfo.get("rowLikes");
+            //construct the default filter expression
+            LogicalExpression defaultExpr;            
+            if (scanFilter != null){
+              defaultExpr = scanFilter.getExpr();            
+            }else{
+              List<LogicalExpression> args = new ArrayList<LogicalExpression>();
+              args.add(functionRegistry.createExpression(">=", new FieldReference(hbaseTableName+"."+"row"), new ValueExpressions.QuotedString("19710101")));
+              args.add(functionRegistry.createExpression("<", new FieldReference(hbaseTableName+"."+"row"), new ValueExpressions.QuotedString("21000101")));
+              defaultExpr = functionRegistry.createExpression("and",args);
             }
             
-            if(starKey.compareTo(minStartkey)<0) minStartkey = starKey;
-            if(endKey.compareTo(maxEndKey)>0) maxEndKey = endKey;
-            rowLikes.addAll(_rowLikes);
+            if (allHBaseFilterExpr == null){
+              allHBaseFilterExpr = defaultExpr;
+            }else{
+              allHBaseFilterExpr = functionRegistry.createExpression("or", allHBaseFilterExpr, defaultExpr);
+            }
+            
             hbaseScans.add(scan);
           }else if(scan.getStorageEngine().equals("mysql")){
             mysqlScans.add(scan);
@@ -83,15 +86,13 @@ public class LogicPlanMerger {
     
     // for hbase
     if(hbaseTableName != null){
+      JSONObject hBaseScanInfo = new JSONObject();
+      StringBuilder sb = new StringBuilder();
+      allHBaseFilterExpr.addToString(sb);
+      hBaseScanInfo.put("filterCondition", sb.toString());
+      hBaseScanInfo.put("filterConstructorClass", "org.apache.drill.hbase.XAFilterConstructor"); 
       ObjectMapper mapper = new ObjectMapper();
-      JSONObject hbaseScanInfo = new JSONObject();
-      hbaseScanInfo.put("startKey", minStartkey);
-      hbaseScanInfo.put("endkey", maxEndKey);
-      //List<String> events = HBaseEventUtils.getSortedEvents(hbaseTableName.replace("xadrill", "-"), rowLikes);
-      List<String> events = new ArrayList<String>(){{add("a");add("b");}};
-      hbaseScanInfo.put("filter", HBaseEventUtils.getRowKeyFilter(events));
-      
-      Scan bigHbaseScan = new Scan("hbase", mapper.readValue(hbaseScanInfo.toJSONString().getBytes(), JSONOptions.class), new FieldReference(hbaseTableName));
+      Scan bigHbaseScan = new Scan("hbase", mapper.readValue(hBaseScanInfo.toJSONString().getBytes(), JSONOptions.class), new FieldReference(hbaseTableName));
       newtLogicalOperators.add(bigHbaseScan);
       
       //substitute the origin scan
@@ -105,33 +106,6 @@ public class LogicPlanMerger {
     //newtLogicalOperators.add(newMysqlScan);
     
     return new LogicalPlan(logicalPlans.get(0).getProperties(), logicalPlans.get(0).getStorageEngines(), newtLogicalOperators);
-  }
-
-  private void getHBaseScanInfo(LogicalExpression logicalExpression, Map<String, Object> hbaseScanInfo){
-    if(logicalExpression instanceof FunctionCall){
-      List<LogicalExpression> args = ((FunctionCall)logicalExpression).args;
-      if(args.get(0) instanceof FieldReference){
-        String functionName = ((FunctionCall)logicalExpression).getDefinition().getName().toLowerCase();
-        String attr = ((FieldReference)args.get(0)).getRootSegment().getChild().getNameSegment().getPath().toString();
-        if(attr.equals("row")){
-          String value = ((ValueExpressions.QuotedString) args.get(1)).value;
-          if(functionName.equals("greater than or equal to")) hbaseScanInfo.put("startKey", value);
-          if(functionName.equals("less than")) hbaseScanInfo.put("endKey", value);
-          if(functionName.equals("equal")){
-            hbaseScanInfo.put("startKey",value);
-            hbaseScanInfo.put("endKey", value);
-          }
-          if(functionName.equals("like")) ((ArrayList<String>)hbaseScanInfo.get("rowLikes")).add(value);
-        }
-      }
-
-      if (args.get(0) instanceof FunctionCall) {
-        getHBaseScanInfo(args.get(0), hbaseScanInfo);
-      }
-      if (args.get(1) instanceof FunctionCall) {
-        getHBaseScanInfo(args.get(1), hbaseScanInfo);
-      }
-    }  
   }
   
   public Filter getScanFilter(LogicalOperator logicalOperator){

@@ -280,15 +280,19 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         return simplifiedExpr;
     }
 
-    private Pair<Boolean, LogicalExpression> removeExtraExpression(LogicalExpression logicalExpression, String tableName) {
+    public Pair<Boolean, LogicalExpression> removeExtraExpression(LogicalExpression logicalExpression, String tableName) {
         if (logicalExpression instanceof FunctionCall) {
             ImmutableList<LogicalExpression> argsTmp = ((FunctionCall) logicalExpression).args;
             Pair<Boolean, LogicalExpression> left = removeExtraExpression(argsTmp.get(0), tableName);
             Pair<Boolean, LogicalExpression> right = removeExtraExpression(argsTmp.get(1), tableName);
 
-            if (left.getSecond() instanceof FunctionCall && right.getSecond() instanceof FunctionCall) {
+            if (left.getSecond() instanceof FunctionCall && right.getSecond() instanceof FunctionCall) { //todo only work for "and" function with two arguments
                 if (left.getFirst() && right.getFirst()) {
-                    return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
+                    //need to construct the function logical expression
+                    List<LogicalExpression> newArgs = new ArrayList<LogicalExpression>();
+                    newArgs.add(left.getSecond());
+                    newArgs.add(right.getSecond());
+                    return new Pair<Boolean, LogicalExpression>(true, new FunctionCall(((FunctionCall) logicalExpression).getDefinition(), newArgs));
                 } else if (left.getFirst()) {
                     return left;
                 } else {
@@ -300,8 +304,8 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                 return new Pair<Boolean, LogicalExpression>(false, logicalExpression);
             }
 
-        } else if (logicalExpression instanceof FieldReference) {
-            PathSegment ps = ((FieldReference) logicalExpression).getRootSegment();
+        } else if (logicalExpression instanceof SchemaPath) {
+            PathSegment ps = ((SchemaPath) logicalExpression).getRootSegment();
             boolean belongTo = ps.getNameSegment().getPath().toString().equals(tableName);
             Pair<Boolean, LogicalExpression> pair = new Pair<Boolean, LogicalExpression>(belongTo, logicalExpression);
             return pair;

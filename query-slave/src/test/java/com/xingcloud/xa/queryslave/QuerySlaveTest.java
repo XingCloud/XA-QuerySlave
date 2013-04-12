@@ -5,8 +5,14 @@ import com.google.common.io.Files;
 import com.xingcloud.xa.queryslave.optimizer.LogicPlanMerger;
 import com.xingcloud.xa.queryslave.parser.PlanParser;
 import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
 import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.expression.FieldReference;
+import org.apache.drill.common.expression.FunctionRegistry;
+import org.apache.drill.common.expression.LogicalExpression;
+import org.apache.drill.common.expression.parser.ExprLexer;
+import org.apache.drill.common.expression.parser.ExprParser;
 import org.apache.drill.common.logical.JSONOptions;
 import org.apache.drill.common.logical.LogicalPlan;
 import org.apache.drill.common.logical.data.Scan;
@@ -16,6 +22,7 @@ import org.apache.drill.exec.ref.ReferenceInterpreter;
 import org.apache.drill.exec.ref.RunOutcome;
 import org.apache.drill.exec.ref.eval.BasicEvaluatorFactory;
 import org.apache.drill.exec.ref.rse.RSERegistry;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.ArrayWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -126,7 +133,7 @@ public class QuerySlaveTest {
         "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
         "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
 
-   // assertTrue(executeSql(sql));
+   assertTrue(executeSql(sql));
 
   }
 
@@ -231,5 +238,39 @@ public class QuerySlaveTest {
     DrillConfig config = DrillConfig.create();
     LogicalPlan logicalPlan = LogicPlanMerger.getInstance().merge(logicalPlans);
     System.out.println(logicalPlan.toJsonString(config));
+    
+    //construct rop
+    IteratorRegistry ir = new IteratorRegistry();
+    ReferenceInterpreter i = new ReferenceInterpreter(logicalPlan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
+    i.setup();
+  }
+
+  private LogicalExpression getLogicalExpressionFromString(String expr){
+    try{
+      ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
+      CommonTokenStream tokens = new CommonTokenStream(lexer);
+      ExprParser parser = new ExprParser(tokens);
+      parser.setRegistry(new FunctionRegistry(DrillConfig.create()));
+      ExprParser.parse_return ret = parser.parse();
+      return ret.e;
+    }catch (Exception e){
+      return null;
+    }
+  }
+  @Test
+  public void testRemoveExpression(){
+    String stringExpr = "fix_sof-dsk.register_time>=1 && (fix_sof-dsk.register_time<2 && sof-dsk_deu.row>3)";
+    //stringExpr = "( ( ( ('fix_sofxadrilldsk.register_time')  >= (20130101000000) )  && ( ('fix_sofxadrilldsk.register_time')  < (20130102000000) ) )  && ( ('sofxadrilldsk_deu_allversions.row')  like (\"visit\") ) )  && ( ('sofxadrilldsk_deu_allversions.row')  == (\"20130225\") ) ";
+    stringExpr = stringExpr.replace("-", "xadrill");
+    LogicalExpression expr = getLogicalExpressionFromString(stringExpr);
+    StringBuilder sb1 = new StringBuilder();
+    expr.addToString(sb1);
+    System.out.println(sb1.toString());
+    
+    Pair<Boolean, LogicalExpression> result=  LogicalPlanOptimizer.getInstance().removeExtraExpression(expr, "sofxadrilldsk_deu");
+    StringBuilder sb = new StringBuilder();
+    System.out.println(result.getFirst().toString());
+    result.getSecond().addToString(sb);
+    System.out.println(sb.toString());
   }
 }
