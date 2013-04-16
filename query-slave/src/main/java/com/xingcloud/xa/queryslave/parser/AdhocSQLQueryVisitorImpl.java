@@ -13,7 +13,7 @@ import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.SelectVisitor;
 import net.sf.jsqlparser.statement.select.Union;
 import net.sf.jsqlparser.statement.select.SelectItem;
-import org.eclipse.jdt.internal.compiler.ast.*;
+//import org.eclipse.jdt.internal.compiler.ast.*;
 
 import java.util.ArrayList;
 import java.util.List;
