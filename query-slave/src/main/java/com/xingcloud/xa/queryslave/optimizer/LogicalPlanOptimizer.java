@@ -47,6 +47,25 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
     private LogicalPlan combineLogicalOperators(LogicalPlan plan) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         OperatorGraph graph = plan.getGraph();
+        // get carryover
+        Set<String> carryOvers = new HashSet<String>() ;
+        Collection<SinkOperator> sinks = graph.getSinks() ;
+        for(SinkOperator sink : sinks){
+            LogicalOperator op = sink.getInput() ;
+            if(op instanceof CollapsingAggregate){
+                CollapsingAggregate aggr = (CollapsingAggregate) op ;
+                for(FieldReference fieldReference : aggr.getCarryovers()){
+                    String path =   fieldReference.getPath().toString() ;
+                    System.out.println(path) ;
+                    int index = path.lastIndexOf('.') ;
+                    index = index > 0 ? index + 1 : 0 ;
+                    String carryOver = path.substring(index) ;
+                    if(!carryOver.equals("segmentvalue"))
+                        carryOvers.add(carryOver) ;
+                }
+            }
+        }
+
         Collection<SourceOperator> sources = graph.getSources();
         List<SourceOperator> newSources = new ArrayList<SourceOperator>();
         for (SourceOperator source : sources) {
@@ -61,7 +80,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                         if (operator instanceof Filter) {
                             /* Should have only one filter */
                             filter = (Filter) operator;
-                            sqls = changeToSQL((Scan) source, filter);
+                            sqls = changeToSQL((Scan) source, filter,carryOvers);
                         }
                     }
                     String field =  ((Scan) source).getOutputReference().getPath().toString() ;
@@ -318,7 +337,7 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
     }
 
 
-    private List<String> changeToSQL(Scan scan, Filter filter) {
+    private List<String> changeToSQL(Scan scan, Filter filter,Set<String> carryOvers) {
         String dataBaseName = scan.getOutputReference().getPath().toString();
         String database = dataBaseName.replace("xadrill", "-");
         LogicalExpression expr = filter.getExpr();
@@ -341,6 +360,22 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                     append(entry.getValue())
                     ;
             sqls.add( sql.toString());
+        }
+        for(String carryOver : carryOvers){
+            if(!sqlsInfo.containsKey(carryOver)){
+                StringBuilder sql = new StringBuilder("SELECT ").
+                        append("uid AS uid,").
+                        append("val AS ").
+                        append(carryOver).
+                        append(" FROM `").
+                        append(database).
+                        append("`.`").
+                        append(carryOver).
+                        append("` AS `").
+                        append(dataBaseName)
+                        ;
+                sqls.add(sql.toString()) ;
+            }
         }
         return sqls;
     }
