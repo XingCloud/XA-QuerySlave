@@ -26,8 +26,8 @@ import java.util.*;
 public class TableScanner implements XAScanner {
   private static Logger LOG = LoggerFactory.getLogger(TableScanner.class);
 
-  private String startRowKey;
-  private String endRowKey;
+  private byte[] startRowKey;
+  private byte[] endRowKey;
   private String tableName;
   private Filter filter;
 
@@ -37,11 +37,11 @@ public class TableScanner implements XAScanner {
   boolean isFileOnly = false;
   private int currentIndex = 0;
 
-  public TableScanner(String startRowKey, String endRowKey, String tableName, boolean isFileOnly, boolean isMemOnly) {
+  public TableScanner(byte[] startRowKey, byte[] endRowKey, String tableName, boolean isFileOnly, boolean isMemOnly) {
     this(startRowKey, endRowKey, tableName, null, isFileOnly, isMemOnly);
   }
 
-  public TableScanner(String startRowKey, String endRowKey, String tableName, Filter filter,
+  public TableScanner(byte[] startRowKey, byte[] endRowKey, String tableName, Filter filter,
                       boolean isFileOnly, boolean isMemOnly) {
     this.isFileOnly = isFileOnly;
     this.isMemOnly = isMemOnly;
@@ -59,11 +59,8 @@ public class TableScanner implements XAScanner {
   }
 
   private void initScanner() throws IOException {
-    byte[] startRow = Bytes.toBytes(startRowKey);
-    byte[] endRow = Bytes.toBytes(endRowKey);
-
     List<Pair<byte[], byte[]>> seKeyList = new ArrayList<Pair<byte[], byte[]>>();
-    Pair<byte[], byte[]> pair = new Pair(startRow, endRow);
+    Pair<byte[], byte[]> pair = new Pair(startRowKey, endRowKey);
     seKeyList.add(pair);
     HTable table = HBaseResourceManager.getInstance().getTable(Bytes.toBytes(tableName));
 
@@ -73,7 +70,7 @@ public class TableScanner implements XAScanner {
     if (!isFileOnly) {
       LOG.info("Begin to init memstore scanner...");
       st = System.nanoTime();
-      Scan memScan = new Scan(startRow, endRow);
+      Scan memScan = new Scan(startRowKey, endRowKey);
       memScan.setMaxVersions();
       memScan.setMemOnly(true);
       memScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
@@ -91,7 +88,7 @@ public class TableScanner implements XAScanner {
 
       for (HRegionInfo regionInfo : regionInfoList) {
         LOG.info("Init hfile scanner of " + regionInfo.toString());
-        Scan fileScan = new Scan(startRow, endRow);
+        Scan fileScan = new Scan(startRowKey, endRowKey);
         if (filter != null)
           fileScan.setFilter(filter);
         fileScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
@@ -206,7 +203,7 @@ public class TableScanner implements XAScanner {
     String erk = args[2];
     boolean isMemOnly = Boolean.parseBoolean(args[3]);
     boolean isFileOnly = Boolean.parseBoolean(args[4]);
-    TableScanner scanner = new TableScanner(srk, erk, tableName, isMemOnly, isFileOnly);
+    TableScanner scanner = new TableScanner(Bytes.toBytes(srk), Bytes.toBytes(erk), tableName, isMemOnly, isFileOnly);
     long counter = 0;
     long st = System.nanoTime();
     List<KeyValue> results = new ArrayList<KeyValue>();
