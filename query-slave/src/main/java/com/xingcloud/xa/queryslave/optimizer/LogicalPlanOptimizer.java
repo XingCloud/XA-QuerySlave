@@ -56,7 +56,6 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
                 CollapsingAggregate aggr = (CollapsingAggregate) op ;
                 for(FieldReference fieldReference : aggr.getCarryovers()){
                     String path =   fieldReference.getPath().toString() ;
-                    System.out.println(path) ;
                     int index = path.lastIndexOf('.') ;
                     index = index > 0 ? index + 1 : 0 ;
                     String carryOver = path.substring(index) ;
