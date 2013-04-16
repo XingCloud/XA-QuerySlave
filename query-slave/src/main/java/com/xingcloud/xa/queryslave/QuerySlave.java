@@ -2,6 +2,7 @@ package com.xingcloud.xa.queryslave;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xingcloud.basic.remote.QuerySlaveProtocol;
 import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
 import com.xingcloud.xa.queryslave.parser.PlanParser;
 import org.apache.drill.common.config.DrillConfig;
@@ -36,7 +37,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Date: 13-3-1
  * Time: 上午11:42
  */
-public class QuerySlave implements QuerySlaveProtocol{
+public class QuerySlave implements QuerySlaveProtocol {
     static final Logger logger = LoggerFactory.getLogger(QuerySlave.class);
     private RPC.Server server;
 
@@ -188,4 +189,8 @@ public class QuerySlave implements QuerySlaveProtocol{
         querySlave.startServer();
     }
 
+  @Override
+  public long getProtocolVersion(String s, long l) throws IOException {
+    return 1;
+  }
 }
