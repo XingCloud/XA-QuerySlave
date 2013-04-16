@@ -43,8 +43,8 @@
         </dependency>
         <dependency>
             <groupId>com.xingcloud</groupId>
-            <artifactId>base</artifactId>
-            <version>0.0.4</version>
+            <artifactId>basis</artifactId>
+            <version>0.0.5</version>
         </dependency>
     </dependencies>
 

@@ -42,10 +42,12 @@ public class MongoResourceManager {
             logger.error("Mongo init got UnknownHostException", e);
         } catch (MongoException e) {
             logger.error("Mongo init got MongoException", e);
+        } catch (Exception e) {
+          e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }
 
-    private void init() throws UnknownHostException, MongoException{
+    private void init() throws Exception {
         if (mongo == null) {
             host = ConfigReader.getConfig("mongodb_conf.xml", "mongodb", "host");
             port = Integer.parseInt(ConfigReader.getConfig("mongodb_conf.xml",
