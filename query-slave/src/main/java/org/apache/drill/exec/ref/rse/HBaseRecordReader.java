@@ -69,7 +69,7 @@ public class HBaseRecordReader implements RecordReader {
                 String erk = date + nextEvent;
                 LOG.info("Begin to init scanner for Start row key: " + srk + " End row key: " + erk + " Table name: " + tableName);
                 System.out.println("Begin to init scanner for Start row key: " + srk + " End row key: " + erk + " Table name: " + tableName);
-                TableScanner scanner = new TableScanner(srk, erk, tableName, false, false);
+                TableScanner scanner = new TableScanner(srk.getBytes(), erk.getBytes(), tableName, false, false);
                 scanners.add(scanner);
             }
         } catch (ParseException e) {
