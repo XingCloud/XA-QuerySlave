@@ -1,6 +1,7 @@
 package com.xingcloud.hbase.util;
 
 import com.xingcloud.hbase.filter.UidRangeFilter;
+import com.xingcloud.hbase.filter.XARowKeyFilter;
 import com.xingcloud.mongodb.MongoDBOperation;
 import com.xingcloud.xa.uidmapping.UidMappingUtil;
 import org.apache.commons.logging.Log;
@@ -92,15 +93,13 @@ public class HBaseEventUtils {
   }
 
 
-  public static Filter getRowKeyFilter(List<String> sortedEvents) {
-      Deque<String> eventQueue = new LinkedList<String>(sortedEvents);
+  public static Filter getRowKeyFilter(List<String> sortedEvents, List<String> dates) {
       Pair<Long, Long> up = getStartEndUidPair();
-      return new UidRangeFilter(up.getFirst(), up.getSecond(), new LinkedList<String>(eventQueue));
+      return new XARowKeyFilter(up.getFirst(), up.getSecond(), sortedEvents, dates);
   }
 
-  public static Filter getRowKeyFilter(List<String> sortedEvents, long startUid, long endUid) {
-    Deque<String> eventQueue = new LinkedList<String>(sortedEvents);
-    return new UidRangeFilter(startUid, endUid, new LinkedList<String>(eventQueue));
+  public static Filter getRowKeyFilter(List<String> sortedEvents, List<String> dates, long startUid, long endUid) {
+    return new XARowKeyFilter(startUid, endUid, sortedEvents, dates);
   }
 
 
@@ -109,7 +108,20 @@ public class HBaseEventUtils {
     long endUid = (1l << 40) - 1l;
 
     return new Pair<Long, Long>(startUid, endUid);
-    }
+  }
+
+  public static Pair<Long, Long> getStartEndUidPair(long startBucket, long offsetBucket) {
+      long startUid = startBucket << 32;
+      long endBucket = offsetBucket + startBucket;
+      long endUid = 0l;
+      if (endBucket >= 256) {
+          endUid = (1l << 40) - 1l;
+      } else {
+          endUid = endBucket << 32;
+      }
+
+      return new Pair<Long, Long>(startUid, endUid);
+  }
 
   /**
    * 按照hbase里面event的排序来排这个eventlist ,加上0xff进行字典排序。
@@ -128,19 +140,23 @@ public class HBaseEventUtils {
     return results;
   }
 
-  public static long getUidOfLongFromDEURowKey(byte[] rowKey) {
-    byte[] uid = new byte[8];
-    int i = 0;
-    for (; i < 3; i++) {
-      uid[i] = 0;
+    public static long getUidOfLongFromDEURowKey(byte[] rowKey) {
+        byte[] uid = new byte[8];
+        int i = 0;
+        for (; i < 3; i++) {
+            uid[i] = 0;
+        }
+
+        for (int j = rowKey.length - 5; j < rowKey.length; j++) {
+            uid[i++] = rowKey[j];
+        }
+
+        return Bytes.toLong(uid);
     }
 
-    for (int j = rowKey.length - 5; j < rowKey.length; j++) {
-      uid[i++] = rowKey[j];
+    public static int getInnerUidFromSuid(long suid) {
+        return (int)(0xffffffffl & suid);
     }
-
-    return Bytes.toLong(uid);
-  }
 
   public static  int getInnerUidFromSamplingUid(long suid) {
     return (int) (0xffffffffl & suid);
