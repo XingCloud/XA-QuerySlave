@@ -42,14 +42,17 @@ public class QuerySlave implements QuerySlaveProtocol {
     private RPC.Server server;
 
     public MapWritable query(String sql) throws Exception{
+        logger.info(sql);
         LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql);
+        LogicalPlan optimizeLogicalPlan = LogicalPlanOptimizer.getInstance().optimize(logicalPlan);
+        System.out.println(optimizeLogicalPlan.toJsonString(DrillConfig.create()));
         if (logicalPlan != null){
             DrillConfig config = DrillConfig.create();
             BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
             config.setSinkQueues(0, queue);
 
             IteratorRegistry ir = new IteratorRegistry();
-            ReferenceInterpreter i = new ReferenceInterpreter(LogicalPlanOptimizer.getInstance().optimize(logicalPlan), ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
+            ReferenceInterpreter i = new ReferenceInterpreter( optimizeLogicalPlan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
             i.setup();
             Collection<RunOutcome> outcomes = i.run();
 

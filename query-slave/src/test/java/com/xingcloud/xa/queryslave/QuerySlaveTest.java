@@ -146,7 +146,8 @@ public class QuerySlaveTest {
     String sqlSecondDaysRetained= "Select count(distinct sof-dsk_deu.uid) " +
       "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
       "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
-
+    
+    String wzj=" SELECT COUNT(DISTINCT sof-dsk_deu.uid) FROM (sof-dsk_deu INNER JOIN fix_sof-dsk ON sof-dsk_deu.uid = fix_sof-dsk.uid) WHERE sof-dsk_deu.l0 = 'visit' AND sof-dsk_deu.date >= '20130301' AND sof-dsk_deu.date <= '20130301'";
     String sql4 = "SELECT count(distinct fix_sof-dsk.uid) FROM fix_sof-dsk   WHERE fix_sof-dsk.register_time>=20130228180000 and fix_sof-dsk.register_time<=20140101000000 and fix_sof-dsk.language >= 'it'" ;
     QuerySlave querySlave = new QuerySlave();
     
