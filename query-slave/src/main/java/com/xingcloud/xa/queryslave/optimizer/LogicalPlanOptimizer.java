@@ -2,6 +2,7 @@ package com.xingcloud.xa.queryslave.optimizer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.expression.*;
 import org.apache.drill.common.logical.JSONOptions;
@@ -40,6 +41,8 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
     @Override
     public LogicalPlan optimize(LogicalPlan plan) throws IOException {
         LogicalPlan optimizedPlan = optimizeLogicalPlanStructure(plan);
+        System.out.println("before combine......");
+        System.out.println(optimizedPlan.toJsonString(DrillConfig.create()));
         optimizedPlan = combineLogicalOperators(optimizedPlan);
         return optimizedPlan;
     }
@@ -294,8 +297,11 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
     private LogicalExpression getLogicalExpr(Filter filter, Scan scan) {
         LogicalExpression logicalExpr = filter.getExpr();
         String tableName = scan.getOutputReference().getPath().toString();
-        LogicalExpression simplifiedExpr = removeExtraExpression(logicalExpr, tableName).getSecond();
-        return simplifiedExpr;
+        Pair<Boolean, LogicalExpression> simplifiedExpr = removeExtraExpression(logicalExpr, tableName);
+        if (simplifiedExpr.getFirst()){
+          return simplifiedExpr.getSecond();
+        }
+        return null;
     }
 
     private Pair<Boolean, LogicalExpression> removeExtraExpression(LogicalExpression logicalExpression, String tableName) {

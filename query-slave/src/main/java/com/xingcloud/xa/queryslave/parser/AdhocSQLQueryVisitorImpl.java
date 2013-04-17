@@ -41,7 +41,7 @@ public class AdhocSQLQueryVisitorImpl implements SelectVisitor {
         }
         return _selections;
     }
-
+    
     @Override
     public void visit(PlainSelect plainSelect) {
         //get the where expression first for hbase/mysql scan

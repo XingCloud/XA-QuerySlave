@@ -2,6 +2,7 @@ package com.xingcloud.xa.queryslave;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.xingcloud.basic.remote.QuerySlaveProtocol;
 import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
 import com.xingcloud.xa.queryslave.parser.PlanParser;
 import org.apache.drill.common.config.DrillConfig;
@@ -36,19 +37,22 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Date: 13-3-1
  * Time: 上午11:42
  */
-public class QuerySlave implements QuerySlaveProtocol{
+public class QuerySlave implements QuerySlaveProtocol {
     static final Logger logger = LoggerFactory.getLogger(QuerySlave.class);
     private RPC.Server server;
 
     public MapWritable query(String sql) throws Exception{
+        logger.info(sql);
         LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql);
+        LogicalPlan optimizeLogicalPlan = LogicalPlanOptimizer.getInstance().optimize(logicalPlan);
+        System.out.println(optimizeLogicalPlan.toJsonString(DrillConfig.create()));
         if (logicalPlan != null){
             DrillConfig config = DrillConfig.create();
             BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
             config.setSinkQueues(0, queue);
 
             IteratorRegistry ir = new IteratorRegistry();
-            ReferenceInterpreter i = new ReferenceInterpreter(LogicalPlanOptimizer.getInstance().optimize(logicalPlan), ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
+            ReferenceInterpreter i = new ReferenceInterpreter( optimizeLogicalPlan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
             i.setup();
             Collection<RunOutcome> outcomes = i.run();
 
@@ -184,38 +188,12 @@ public class QuerySlave implements QuerySlaveProtocol{
     }
 
     public static void main(String[] args) throws Exception{
-      String sql5min = "select count(0), count(distinct sof-dsk_deu.uid) " +
-        "from sof-dsk_deu "+
-        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' " +
-        "group by min5(sof-dsk_deu.ts)";
-
-      String sqlSecondDayRetained = "Select count(distinct sof-dsk_deu.uid) " +
-        "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
-        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<=20130101000000 and fix_sof-dsk.first_pay_time = 20130101000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
-
-
-      String sql = "SELECT count(distinct fix_sof-dsk.uid) FROM fix_sof-dsk   WHERE fix_sof-dsk.register_time>=19700101000000 and fix_sof-dsk.register_time<=20140101000000 and fix_sof-dsk.first_pay_time >= 19700101000000" ;
-      QuerySlave querySlave = new QuerySlave();
-      MapWritable mapWritable = querySlave.query(sqlSecondDayRetained);
-
-      for (MapWritable.Entry<Writable, Writable> entry : mapWritable.entrySet()) {
-        Text key = (Text) entry.getKey();
-        System.err.print(key + ":");
-        if (key.toString().equals("size")) {
-          Text value = (Text) entry.getValue();
-          System.err.println(value);
-        } else {
-          ArrayWritable value = (ArrayWritable) entry.getValue();
-          String[] record = value.toStrings();
-          System.err.println(Arrays.toString(record));
-        }
-
-
-      }
-
-//        QuerySlave querySlave = new QuerySlave();
-//        querySlave.startServer();
-
+        QuerySlave querySlave = new QuerySlave();
+        querySlave.startServer();
     }
 
+  @Override
+  public long getProtocolVersion(String s, long l) throws IOException {
+    return 1;
+  }
 }
