@@ -340,7 +340,9 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         String dataBaseName = scan.getOutputReference().getPath().toString();
         String database = dataBaseName.replace("xadrill", "-");
         LogicalExpression expr = filter.getExpr();
-        Set<String> tables = new HashSet<String>();
+        if(expr == null){
+            throw new DrillRuntimeException("Not support scan : "  + scan + " yet !") ;
+        }
         Map<String, String> sqlsInfo = getSQLInfoFilters(expr);
         List<String> sqls = new ArrayList<String>();
         for (Map.Entry<String, String> entry : sqlsInfo.entrySet()) {
