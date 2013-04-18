@@ -7,6 +7,8 @@ package com.xingcloud.hbase.filter;
  * Time: 下午3:48
  * To change this template use File | Settings | File Templates.
  */
+import com.sun.org.apache.xml.internal.security.exceptions.Base64DecodingException;
+import com.sun.org.apache.xml.internal.security.utils.Base64;
 import com.xingcloud.hbase.util.HBaseEventUtils;
 import com.xingcloud.xa.uidmapping.UidMappingUtil;
 import org.apache.commons.logging.Log;
@@ -29,6 +31,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -322,7 +325,20 @@ public class XARowKeyFilterTest {
         }
     }
 
-
+    @Test
+    public void testProduction() throws IOException, Base64DecodingException {
+      List<String> events = new ArrayList<String>(){{add("visit.");}};
+      List<String> dates = new ArrayList<String>(){{add("20130102");}};
+      Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey("20130102", "20130102", events, 0, 256);
+      System.out.println(Base64.encode(pair.getFirst())+Base64.encode(pair.getSecond()));      
+      Filter filter = HBaseEventUtils.getRowKeyFilter(events,dates);
+      TableScanner scanner = new TableScanner(Base64.decode(Base64.encode(pair.getFirst())), Base64.decode(Base64.encode(pair.getSecond())), "sof-dsk_deu_allversions", filter, false, false);
+      List<KeyValue> results = new ArrayList<KeyValue>();
+      while (scanner.next(results)){
+        System.out.println(results.size()); 
+      }
+      
+    }
     private static void dropTable() throws IOException {
         System.out.println("Drop hbase test table, before testing...");
         //del table
@@ -392,6 +408,4 @@ public class XARowKeyFilterTest {
         }
         IOUtils.closeStream(hTable);
     }
-
-
 }

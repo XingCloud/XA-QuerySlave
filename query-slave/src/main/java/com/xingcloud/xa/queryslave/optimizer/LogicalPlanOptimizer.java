@@ -103,32 +103,32 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
 
                 } else if (se.equals("hbase")) {
                     /* Combine filter and scan to hbase scanner */
-                    Filter filter = null;
-                    JSONOptions selection = null;
-                    for (LogicalOperator operator : source) {
-                        if (operator instanceof Filter) {
-                            /* Should have only one filter */
-                            filter = (Filter) operator;
-                            LogicalExpression expr = filter.getExpr();
-                            JSONObject hbaseScanInfo = getInitHBaseScanInfo();
-                            getHBaseScanInfo(expr, hbaseScanInfo);
-                            selection = mapper.readValue(hbaseScanInfo.toJSONString().getBytes(), JSONOptions.class);
-                        }
-                    }
-                    if (filter != null) {
-                        source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
-                        for (LogicalOperator child : filter.getAllSubscribers()) {
-                            if (child instanceof Join) {
-                                if (((Join) child).getLeft() == filter) {
-                                    ((Join) child).setLeft(source);
-                                } else if (((Join) child).getRight() == filter) {
-                                    ((Join) child).setRight(source);
-                                }
-                            } else if (child instanceof SingleInputOperator) {
-                                ((SingleInputOperator) child).setInput(source);
-                            }
-                        }
-                    }
+//                    Filter filter = null;
+//                    JSONOptions selection = null;
+//                    for (LogicalOperator operator : source) {
+//                        if (operator instanceof Filter) {
+//                            /* Should have only one filter */
+//                            filter = (Filter) operator;
+//                            LogicalExpression expr = filter.getExpr();
+//                            JSONObject hbaseScanInfo = getInitHBaseScanInfo();
+//                            getHBaseScanInfo(expr, hbaseScanInfo);
+//                            selection = mapper.readValue(hbaseScanInfo.toJSONString().getBytes(), JSONOptions.class);
+//                        }
+//                    }
+//                    if (filter != null) {
+//                        source = new Scan(((Scan) source).getStorageEngine(), selection, ((Scan) source).getOutputReference());
+//                        for (LogicalOperator child : filter.getAllSubscribers()) {
+//                            if (child instanceof Join) {
+//                                if (((Join) child).getLeft() == filter) {
+//                                    ((Join) child).setLeft(source);
+//                                } else if (((Join) child).getRight() == filter) {
+//                                    ((Join) child).setRight(source);
+//                                }
+//                            } else if (child instanceof SingleInputOperator) {
+//                                ((SingleInputOperator) child).setInput(source);
+//                            }
+//                        }
+//                    }
                     newSources.add(source);
                 }
 
@@ -286,46 +286,52 @@ public class LogicalPlanOptimizer implements PlanOptimizer {
         return null;
     }
 
-    public Pair<Boolean, LogicalExpression> removeExtraExpression(LogicalExpression logicalExpression, String tableName) {
-        if (logicalExpression instanceof FunctionCall) {
-            ImmutableList<LogicalExpression> argsTmp = ((FunctionCall) logicalExpression).args;
-            Pair<Boolean, LogicalExpression> left = removeExtraExpression(argsTmp.get(0), tableName);
-            Pair<Boolean, LogicalExpression> right = removeExtraExpression(argsTmp.get(1), tableName);
+  public Pair<Boolean, LogicalExpression> removeExtraExpression(LogicalExpression logicalExpression, String tableName) {
+    if (logicalExpression instanceof FunctionCall) {// just consider the function that have one or two arguments
+      String functionName = ((FunctionCall)logicalExpression).getDefinition().getName();
+      ImmutableList<LogicalExpression> argsTmp = ((FunctionCall) logicalExpression).args;
+      Pair<Boolean, LogicalExpression> left = removeExtraExpression(argsTmp.get(0), tableName);
+      Pair<Boolean, LogicalExpression> right;
+      if (argsTmp.size() > 1) {
+        right = removeExtraExpression(argsTmp.get(1), tableName);
+      } else { //f(x)
+        return new Pair<Boolean, LogicalExpression>(left.getFirst(), logicalExpression);
+      }
 
-            if (left.getSecond() instanceof FunctionCall && right.getSecond() instanceof FunctionCall) { //todo only work for "and" function with two arguments
-                if (left.getFirst() && right.getFirst()) {
-                    //need to construct the function logical expression
-                    List<LogicalExpression> newArgs = new ArrayList<LogicalExpression>();
-                    newArgs.add(left.getSecond());
-                    newArgs.add(right.getSecond());
-                    return new Pair<Boolean, LogicalExpression>(true, new FunctionCall(((FunctionCall) logicalExpression).getDefinition(), newArgs));
-                } else if (left.getFirst()) {
-                    return left;
-                } else {
-                    return right;
-                }
-            } else if (left.getFirst() && right.getFirst()) {
-                return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
-            } else {
-                return new Pair<Boolean, LogicalExpression>(false, logicalExpression);
-            }
-
-        } else if (logicalExpression instanceof SchemaPath) {
-            PathSegment ps = ((SchemaPath) logicalExpression).getRootSegment();
-            boolean belongTo = ps.getNameSegment().getPath().toString().equals(tableName);
-            Pair<Boolean, LogicalExpression> pair = new Pair<Boolean, LogicalExpression>(belongTo, logicalExpression);
-            return pair;
-        } else if (logicalExpression instanceof ValueExpressions.BooleanExpression) {
-            return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
-        } else if (logicalExpression instanceof ValueExpressions.DoubleExpression) {
-            return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
-        } else if (logicalExpression instanceof ValueExpressions.LongExpression) {
-            return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
-        } else if (logicalExpression instanceof ValueExpressions.QuotedString) {
-            return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
+      if (left.getFirst() && right.getFirst()) {
+        List<LogicalExpression> newArgs = new ArrayList<LogicalExpression>();
+        newArgs.add(left.getSecond());
+        newArgs.add(right.getSecond());
+        LogicalExpression newFunction = new FunctionCall(((FunctionCall) logicalExpression).getDefinition(), newArgs);
+        return new Pair<Boolean, LogicalExpression>(true, newFunction);
+      } else {
+        if (functionName.equals("and")) { // x and y, the situation "a.id or b.id" will never appear             
+          if (left.getFirst()) {
+            return left;
+          } else {
+            return right;
+          }
+        } else { //f(x) > y, discard always
+          return new Pair<Boolean, LogicalExpression>(false, logicalExpression);
         }
-        throw new DrillRuntimeException("Can't parse Logical Expression: " + logicalExpression);
+      }
+
+    } else if (logicalExpression instanceof SchemaPath) {
+      PathSegment ps = ((SchemaPath) logicalExpression).getRootSegment();
+      boolean belongTo = ps.getNameSegment().getPath().toString().equals(tableName);
+      Pair<Boolean, LogicalExpression> pair = new Pair<Boolean, LogicalExpression>(belongTo, logicalExpression);
+      return pair;
+    } else if (logicalExpression instanceof ValueExpressions.BooleanExpression) {
+      return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
+    } else if (logicalExpression instanceof ValueExpressions.DoubleExpression) {
+      return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
+    } else if (logicalExpression instanceof ValueExpressions.LongExpression) {
+      return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
+    } else if (logicalExpression instanceof ValueExpressions.QuotedString) {
+      return new Pair<Boolean, LogicalExpression>(true, logicalExpression);
     }
+    throw new DrillRuntimeException("Can't parse Logical Expression: " + logicalExpression);
+  }
 
 
     private List<String> changeToSQL(Scan scan, Filter filter) {

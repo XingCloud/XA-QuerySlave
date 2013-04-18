@@ -2,6 +2,7 @@ package com.xingcloud.xa.queryslave;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import com.xingcloud.hbase.util.HBaseEventUtils;
 import com.xingcloud.xa.queryslave.optimizer.LogicPlanMerger;
 import com.xingcloud.xa.queryslave.parser.PlanParser;
 import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
@@ -22,11 +23,13 @@ import org.apache.drill.exec.ref.ReferenceInterpreter;
 import org.apache.drill.exec.ref.RunOutcome;
 import org.apache.drill.exec.ref.eval.BasicEvaluatorFactory;
 import org.apache.drill.exec.ref.rse.RSERegistry;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.ArrayWritable;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.xerces.impl.dv.util.Base64;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -76,21 +79,21 @@ public class QuerySlaveTest {
     return sb.toString().equals(result);
   }
 
-  private boolean executeSql(String sql) throws Exception{
-
+  private boolean executeSql(String... sqls) throws Exception{
     DrillConfig config = DrillConfig.create();
     BlockingQueue<Object> queue = new LinkedBlockingQueue<Object>();
     config.setSinkQueues(0, queue);
 
-    LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql.replace("sof-dsk_deu","sof-dsk_deu_allversions"));
-    System.out.println("Before optimize: ");
+    List<LogicalPlan> logicalPlans = new ArrayList<LogicalPlan>();
+    for(String sql: sqls){
+      logicalPlans.add(PlanParser.getInstance().parse(sql.replace("sof-dsk_deu", "sof-dsk_deu_allversions")));
+    }
+    LogicalPlan logicalPlan = LogicPlanMerger.getInstance().merge(logicalPlans);
+    
     System.out.println(logicalPlan.toJsonString(config));
 
-    LogicalPlan optimizedPlan = LogicalPlanOptimizer.getInstance().optimize(logicalPlan);
-    System.out.println("After optimize: ");
-    System.out.println(optimizedPlan.toJsonString(config));
     IteratorRegistry ir = new IteratorRegistry();
-    ReferenceInterpreter i = new ReferenceInterpreter(optimizedPlan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
+    ReferenceInterpreter i = new ReferenceInterpreter(logicalPlan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
 
     i.setup();
     Collection<RunOutcome> outcomes = i.run();
@@ -129,9 +132,21 @@ public class QuerySlaveTest {
     //hbase
     //String sql = new String("Select sof-dsk_deu.uid from sof-dsk_deu where sof-dsk_deu.date='20130102' and sof-dsk_deu.l0='visit'").replace("-","xadrill");
 
-    String sql= "Select count(distinct sof-dsk_deu.uid) " +
-        "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
-        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
+//    String sql= "Select count(distinct sof-dsk_deu.uid) " +
+//        "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
+//        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
+
+    Pair<byte[], byte[]> startEndRowKey = HBaseEventUtils.getStartEndRowKey("20130102","20130102", new ArrayList<String>(){{add("visit.");}}, 0, 256);
+    String starRowKey = Base64.encode(startEndRowKey.getFirst());
+    String endRowKey = Base64.encode(startEndRowKey.getSecond());
+        
+    String sql= "Select count(distinct deu_uid(sof-dsk_deu.row)) " +
+      "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=deu_uid(sof-dsk_deu.row)) " +
+      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and (deu_event(sof-dsk_deu.row) like 'visit.') " +
+      "and bit_compare(sof-dsk_deu.row,'" +
+      starRowKey+
+      "')>=0 and bit_compare(sof-dsk_deu.row,'"+
+      endRowKey+"')<0";
    assertTrue(executeSql(sql));
 
   }

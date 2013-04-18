@@ -40,7 +40,7 @@ public class LogicPlanMerger {
     FunctionRegistry functionRegistry = new FunctionRegistry(DrillConfig.create());
       
     for (LogicalPlan _logicalPlan: logicalPlans){      
-      LogicalPlan logicalPlan = LogicalPlanOptimizer.getInstance().optimizeLogicalPlanStructure(_logicalPlan);
+      LogicalPlan logicalPlan = LogicalPlanOptimizer.getInstance().optimize(_logicalPlan);
       System.out.println(logicalPlan.toJsonString(DrillConfig.create()));
       newtLogicalOperators.addAll(logicalPlan.getSortedOperators());
       Collection<SourceOperator> sourceOperators = logicalPlan.getGraph().getSources();

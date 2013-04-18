@@ -14,6 +14,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.regionserver.TableScanner;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.xerces.impl.dv.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +83,10 @@ public class HBaseRecordReader implements RecordReader {
     }
   
   public  HBaseRecordReader(String startKey, String endKey, Filter filter, ROP parent, SchemaPath rootPath){
-    TableScanner tableScanner = new TableScanner(startKey, endKey, getTableName(rootPath), filter, false, false);    
+    this.parent = parent;
+    this.rootPath = rootPath;
+    TableScanner tableScanner = new TableScanner(Base64.decode(startKey), Base64.decode(endKey), getTableName(rootPath), filter, false, false);   
+    scanners.add(tableScanner);
   }
     private class NodeIter implements RecordIterator {
 
@@ -131,7 +135,11 @@ public class HBaseRecordReader implements RecordReader {
                     valIndex = 0;
                     if (curRes.size() != 0) {
                         KeyValue kv = curRes.get(valIndex++);
+                      try{
                         record.setClearAndSetRoot(rootPath, convert(kv));
+                      }catch (Exception e){
+                        e.printStackTrace();
+                      }
                         return NextOutcome.INCREMENTED_SCHEMA_CHANGED;
                     }
                 }
@@ -201,6 +209,7 @@ public class HBaseRecordReader implements RecordReader {
         DataValue tsDV = new ScalarValues.LongScalar(ts);
         map.setByName("ts", tsDV);
 
+        map.setByName("row", new ScalarValues.StringScalar(Base64.encode(rk)));
         //LOG.info(map.toString());
         //System.out.println(innerUid+"\t"+eventVal+"\t"+ts);
         return map;

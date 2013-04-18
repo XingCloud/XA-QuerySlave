@@ -162,4 +162,8 @@ public class HBaseEventUtils {
     return (int) (0xffffffffl & suid);
   }
 
+  public static String getDateFromDEURowKey(byte[] rowKey) {
+    byte[] date = Arrays.copyOfRange(rowKey, 0, 8);
+    return Bytes.toString(date);
+  }
 }

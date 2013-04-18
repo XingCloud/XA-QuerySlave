@@ -4,21 +4,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.xingcloud.hbase.util.HBaseEventUtils;
 import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.common.logical.StorageEngineConfigBase;
 import org.apache.drill.common.logical.data.Scan;
 import org.apache.drill.exec.ref.rops.ROP;
-import org.apache.drill.exec.ref.rse.RSEBase;
-import org.apache.drill.exec.ref.rse.RecordReader;
 import org.apache.drill.hbase.FilterConstrucor;
-import org.apache.hadoop.hbase.filter.Filter;
-import org.apache.hadoop.hbase.filter.FilterList;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
  * Created with IntelliJ IDEA.
@@ -64,9 +60,9 @@ public class HBaseRSE extends RSEBase {
       Constructor<?> constructors[] = cls.getConstructors();
       filterConstrucor = (FilterConstrucor) constructors[0].newInstance(e.filterCondition);    
     }catch (ClassNotFoundException cnfe){
-      
+      cnfe.printStackTrace();  
     }catch (Exception ex){
-      
+      ex.printStackTrace();
     }  
     if (filterConstrucor != null){
       return new HBaseRecordReader(filterConstrucor.getStartRowKey(),filterConstrucor.getEndRowKey() , filterConstrucor.getFilter(), parentROP, e.rootPath);
