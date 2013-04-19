@@ -327,15 +327,18 @@ public class XARowKeyFilterTest {
 
     @Test
     public void testProduction() throws IOException, Base64DecodingException {
-      List<String> events = new ArrayList<String>(){{add("visit.");}};
+      List<String> events = HBaseEventUtils.getSortedEvents("sof-dsk", new ArrayList<String>(){{add("visit.*");}});
       List<String> dates = new ArrayList<String>(){{add("20130102");}};
       Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey("20130102", "20130102", events, 0, 256);
       System.out.println(Base64.encode(pair.getFirst())+Base64.encode(pair.getSecond()));      
       Filter filter = HBaseEventUtils.getRowKeyFilter(events,dates);
       TableScanner scanner = new TableScanner(Base64.decode(Base64.encode(pair.getFirst())), Base64.decode(Base64.encode(pair.getSecond())), "sof-dsk_deu_allversions", filter, false, false);
       List<KeyValue> results = new ArrayList<KeyValue>();
+      int i=0;
       while (scanner.next(results)){
+        System.out.println(i++);
         System.out.println(results.size()); 
+        results.clear();
       }
       
     }

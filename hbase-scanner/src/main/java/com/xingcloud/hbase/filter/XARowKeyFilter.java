@@ -21,7 +21,7 @@ import java.util.*;
  * To change this template use File | Settings | File Templates.
  */
 public class XARowKeyFilter extends FilterBase {
-    private static Log LOG = LogFactory.getLog(UidRangeFilter.class);
+    private static Log LOG = LogFactory.getLog(XARowKeyFilter.class);
 
     private byte[] startUidOfBytes5;
     private byte[] endUidOfBytes5;

@@ -92,7 +92,7 @@
         <dependency>
             <groupId>hbase</groupId>
             <artifactId>hbase</artifactId>
-            <version>0.94</version>
+            <version>0.94.6</version>
         </dependency>
 
         <dependency>
@@ -142,7 +142,11 @@
             <artifactId>log4j-over-slf4j</artifactId>
             <version>${dep.slf4j.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-core</artifactId>
+            <version>1.0.4</version>
+        </dependency>
 
     </dependencies>
 </project>

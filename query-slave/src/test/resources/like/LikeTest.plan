@@ -42,7 +42,7 @@
 	    },
       {
         op: "filter",
-        expr: "like(donuts.type,'%small%')"
+        expr: "donuts.type like '%small%'"
       },
 	    {
 	      op: "order",

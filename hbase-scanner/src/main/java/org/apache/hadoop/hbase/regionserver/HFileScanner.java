@@ -161,13 +161,13 @@ public class HFileScanner implements DataScanner {
 
       for (Map.Entry<byte[], NavigableSet<byte[]>> entry :
               scan.getFamilyMap().entrySet()) {
-        this.matcher = new ScanQueryMatcher(scan, this.scanInfo, entry.getValue(), StoreScanner.ScanType.USER_SCAN,
+        this.matcher = new ScanQueryMatcher(scan, this.scanInfo, entry.getValue(), ScanType.USER_SCAN,
                 Long.MAX_VALUE, HConstants.LATEST_TIMESTAMP, oldestUnexpiredTS);
         List<StoreFileScanner> sfScanners = StoreFileScanner.getScannersForStoreFiles(storeFiles, false, false);
         this.scanners = new ArrayList<KeyValueScanner>(sfScanners.size());
         this.scanners.addAll(sfScanners);
 
-        StoreScanner storeScanner = new StoreScanner(scan, scanInfo, StoreScanner.ScanType.USER_SCAN, entry.getValue(), scanners);
+        StoreScanner storeScanner = new StoreScanner(scan, scanInfo, ScanType.USER_SCAN, entry.getValue(), scanners);
         kvScanners.add(storeScanner);
                 /* Only have one column family */
         break;

@@ -34,14 +34,6 @@ import org.apache.drill.exec.ref.ReferenceInterpreter;
 public class HBaseRecordReader implements RecordReader {
     private static Logger LOG = LoggerFactory.getLogger(HBaseRecordReader.class);
 
-    private String startDate;
-    private String endDate;
-    private String l0;
-    private String l1;
-    private String l2;
-    private String l3;
-    private String l4;
-
     private long totalRecords = 0;
     private List<TableScanner> scanners = new ArrayList<TableScanner>();
     private int currentScannerIndex = 0;
@@ -52,35 +44,6 @@ public class HBaseRecordReader implements RecordReader {
     private ROP parent;
     private SchemaPath rootPath;
     private UnbackedRecord record = new UnbackedRecord();
-
-    public HBaseRecordReader(String startDate, String endDate, String l0, String l1, String l2, String l3, String l4, ROP parent, SchemaPath rootPath) {
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.l0 = l0;
-        this.l1 = l1;
-        this.l2 = l2;
-        this.l3 = l3;
-        this.l4 = l4;
-        this.parent = parent;
-        this.rootPath = rootPath;
-        String event = l0 + ".*";
-        String nextEvent = getNextEvent(l0) + ".*";
-        String tableName = getTableName(rootPath);
-        try {
-            for (String date=startDate; compareDate(date, endDate)<=0; date=calDay(date, 1)) {
-                String srk = date + event;
-                String erk = date + nextEvent;
-                LOG.info("Begin to init scanner for Start row key: " + srk + " End row key: " + erk + " Table name: " + tableName);
-                System.out.println("Begin to init scanner for Start row key: " + srk + " End row key: " + erk + " Table name: " + tableName);
-                TableScanner scanner = new TableScanner(srk.getBytes(), erk.getBytes(), tableName, false, false);
-                scanners.add(scanner);
-            }
-        } catch (ParseException e) {
-            e.printStackTrace();
-            LOG.error("Init HBaseRecordReader error! MSG: " + e.getMessage());
-        }
-
-    }
   
   public  HBaseRecordReader(String startKey, String endKey, Filter filter, ROP parent, SchemaPath rootPath){
     this.parent = parent;
@@ -119,6 +82,7 @@ public class HBaseRecordReader implements RecordReader {
         }
 
         private NextOutcome next(TableScanner scanner) throws IOException {
+            //System.out.println(totalRecords++);
             if (valIndex == -1) {
                 if (scanner == null) {
                     return RecordIterator.NextOutcome.NONE_LEFT;

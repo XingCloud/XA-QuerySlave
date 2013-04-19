@@ -3,6 +3,7 @@ package com.xingcloud.xa.queryslave;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xingcloud.basic.remote.QuerySlaveProtocol;
+import com.xingcloud.xa.queryslave.optimizer.LogicPlanMerger;
 import com.xingcloud.xa.queryslave.optimizer.LogicalPlanOptimizer;
 import com.xingcloud.xa.queryslave.parser.PlanParser;
 import org.apache.drill.common.config.DrillConfig;
@@ -42,9 +43,12 @@ public class QuerySlave implements QuerySlaveProtocol {
     private RPC.Server server;
 
     public MapWritable query(String sql) throws Exception{
+        sql = sql.replace("-","xadrill");
         logger.info(sql);
         LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql);
-        LogicalPlan optimizeLogicalPlan = LogicalPlanOptimizer.getInstance().optimize(logicalPlan);
+        List<LogicalPlan> logicalPlans = new ArrayList<LogicalPlan>();
+        logicalPlans.add(logicalPlan);
+        LogicalPlan optimizeLogicalPlan = LogicPlanMerger.getInstance().merge(logicalPlans);
         System.out.println(optimizeLogicalPlan.toJsonString(DrillConfig.create()));
         if (logicalPlan != null){
             DrillConfig config = DrillConfig.create();

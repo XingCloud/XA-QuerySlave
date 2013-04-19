@@ -1,10 +1,8 @@
 package org.apache.drill.hbase;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xingcloud.hbase.util.HBaseEventUtils;
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
-import org.antlr.stringtemplate.StringTemplateGroup;
 import org.apache.drill.common.config.DrillConfig;
 import org.apache.drill.common.expression.*;
 import org.apache.drill.common.expression.parser.ExprLexer;
@@ -13,7 +11,6 @@ import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.xerces.impl.dv.util.Base64;
-import org.json.simple.JSONObject;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -43,8 +40,10 @@ public class XAFilterConstructor extends FilterConstructorBase{
     endRowKey = (String)hBaseScanInfo.get("endRowKey");
 
     List<String> rowLikes = (ArrayList<String>)hBaseScanInfo.get("rowLikes");
-    //List<String> events = HBaseEventUtils.getSortedEvents(((String)(hBaseScanInfo.get("hBaseTableName"))).replace("xadrill", "-"), rowLikes);
-    List<String> events = new ArrayList<String>(){{add("visit.");}};
+    String hBaseTableName = (String)hBaseScanInfo.get("hBaseTableName");
+    hBaseTableName = hBaseTableName.substring(0, hBaseTableName.indexOf("_deu")).replace("xadrill", "-");
+    List<String> events = HBaseEventUtils.getSortedEvents(hBaseTableName, rowLikes);
+    //List<String> events = new ArrayList<String>(){{add("visit.");}};
     
     String startDate = HBaseEventUtils.getDateFromDEURowKey(Base64.decode(startRowKey));
     String endDate = HBaseEventUtils.getDateFromDEURowKey(Base64.decode(endRowKey));
@@ -166,6 +165,8 @@ public class XAFilterConstructor extends FilterConstructorBase{
   }
   
   public static void main(String[] args) throws Exception {
+    String s = "sofxadrilldsk_deu_allversions";
+    s=s.substring(0, s.indexOf("_deu")).replace("xadrill","-");
     Pair<byte[], byte[]> startEndRowKey = HBaseEventUtils.getStartEndRowKey("20130102","20130102", new ArrayList<String>(){{add("visit.");}}, 0, 256);
     String s1 = Base64.encode(startEndRowKey.getFirst());
     String s2 = Base64.encode(startEndRowKey.getSecond());

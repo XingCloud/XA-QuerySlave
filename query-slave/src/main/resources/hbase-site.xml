@@ -2,7 +2,7 @@
 <configuration>
 	<property>
 		<name>hbase.rootdir</name>
-		<value>hdfs://datanode1:19000/hbase2</value>
+		<value>hdfs://datanode1:19000/hbase</value>
 	</property>
 	<property>
 		<name>hbase.cluster.distributed</name>
@@ -10,7 +10,7 @@
 	</property>
 	<property>
 		<name>hbase.zookeeper.quorum</name>
-		<value>datanode2</value>
+		<value>datanode1</value>
     </property>
     <property>
         <name>hbase.zookeeper.property.clientPort</name>
@@ -18,7 +18,7 @@
     </property>
 	<property skipInDoc="true">
 		<name>hbase.defaults.for.version</name>
-		<value>0.94.0</value>
+		<value>0.94.6</value>
 	</property>
 	<property>
     	<name>hbase.client.ipc.pool.type</name>

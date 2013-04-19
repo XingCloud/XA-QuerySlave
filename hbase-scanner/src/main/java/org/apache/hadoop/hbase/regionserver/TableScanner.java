@@ -6,6 +6,7 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -62,7 +63,7 @@ public class TableScanner implements XAScanner {
     List<Pair<byte[], byte[]>> seKeyList = new ArrayList<Pair<byte[], byte[]>>();
     Pair<byte[], byte[]> pair = new Pair(startRowKey, endRowKey);
     seKeyList.add(pair);
-    HTable table = HBaseResourceManager.getInstance().getTable(Bytes.toBytes(tableName));
+    HTablePool.PooledHTable table = HBaseResourceManager.getInstance().getTable(Bytes.toBytes(tableName));
 
     scanners = new ArrayList<DataScanner>();
     long st = System.nanoTime();
@@ -76,14 +77,14 @@ public class TableScanner implements XAScanner {
       memScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
       if (filter != null)
         memScan.setFilter(filter);
-      MemstoreScanner memstoreScanner = new MemstoreScanner(table, memScan);
+      MemstoreScanner memstoreScanner = new MemstoreScanner((HTable)table.getWrappedTable(), memScan);
       scanners.add(memstoreScanner);
       LOG.info("Init memstore scanner finished. Taken: " + (System.nanoTime() - st) / 1.0e9 + " sec");
     }
 
     if (!isMemOnly) {
       LOG.info("Begin to init store file scanner...");
-      List<HRegionInfo> regionInfoList = getRegionInfoList(table, seKeyList);
+      List<HRegionInfo> regionInfoList = getRegionInfoList((HTable)table.getWrappedTable(), seKeyList);
       LOG.info("Number of regions: " + regionInfoList.size() + " for " + tableName + " " + startRowKey + " " + endRowKey);
 
       for (HRegionInfo regionInfo : regionInfoList) {

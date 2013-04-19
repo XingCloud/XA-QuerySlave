@@ -30,9 +30,12 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.xerces.impl.dv.util.Base64;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,11 +52,66 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class QuerySlaveTest {
   
-  private boolean sqlToPlan(String sql) throws Exception{
+  private static String sqlOnlyMysql;
+  private static String sqlOnlyHBase;
+  private static String sql5min;
+  private static String sqlSecondDayRetained;
+  private static String sqlDau;
+  private static String sqlDavisit;
+  
+  
+  @BeforeClass
+  public static void constructSqls() throws IOException {
+
+    List<String> events = HBaseEventUtils.getSortedEvents("sof-dsk", new ArrayList<String>(){{add("visit.*");}});
+    Pair<byte[], byte[]> startEndRowKey = HBaseEventUtils.getStartEndRowKey("20130102","20130102", events, 0, 256);
+    String startRowKey = Base64.encode(startEndRowKey.getFirst());
+    String endRowKey = Base64.encode(startEndRowKey.getSecond());
+
+    sqlSecondDayRetained = "Select count(distinct deu_uid(sof-dsk_deu.row)) " +
+      "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=deu_uid(sof-dsk_deu.row)) " +
+      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and (deu_event(sof-dsk_deu.row) like 'visit.*') " +
+      "and bit_compare(sof-dsk_deu.row,'" + startRowKey+"')>=0 " +
+      "and bit_compare(sof-dsk_deu.row,'"+ endRowKey+"')<0";
+    
+    sql5min = "select count(0), count(distinct deu_uid(sof-dsk_deu.row)) " +
+      "from sof-dsk_deu "+
+      "where deu_event(sof-dsk_deu.row) like 'visit.*' " +
+      "and bit_compare(sof-dsk_deu.row,'" + startRowKey+ "')>=0 "+
+      "and bit_compare(sof-dsk_deu.row,'"+ endRowKey + "')<0 "+
+      "group by min5(sof-dsk_deu.ts)";
+
+    sqlDau = "select count(distinct deu_uid(sof-dsk_deu.row)) " +
+      "from sof-dsk_deu "+
+      "where deu_event(sof-dsk_deu.row) like 'visit.*' " +
+      "and bit_compare(sof-dsk_deu.row,'" + startRowKey+ "')>=0 "+
+      "and bit_compare(sof-dsk_deu.row,'"+ endRowKey + "')<0 ";
+
+    sqlDavisit = "select count(0) " +
+      "from sof-dsk_deu "+
+      "where deu_event(sof-dsk_deu.row) like 'visit.*' " +
+      "and bit_compare(sof-dsk_deu.row,'" + startRowKey+ "')>=0 "+
+      "and bit_compare(sof-dsk_deu.row,'"+ endRowKey + "')<0 ";
+
+    sqlOnlyMysql = "Select fix_sof-dsk.uid " +
+      "FROM fix_sof-dsk " +
+      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000";
+
+    sqlOnlyHBase ="Select deu_uid(sof-dsk_deu.row) " +
+      "from sof-dsk_deu " +
+      "where deu_event(sof-dsk_deu.row) like 'visit.*' " +
+      "and bit_compare(sof-dsk_deu.row,'" + startRowKey+ "')>=0 "+
+      "and bit_compare(sof-dsk_deu.row,'"+ endRowKey + "')<0 ";
+  }
+  
+  private static String preProcessSql(String sql){
+    return sql.replace("-","xadrill");  
+  }
+  
+  private String sqlToLogicalPlan(String sql) throws Exception{
     DrillConfig config = DrillConfig.create();
-    LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql.replace("sof-dsk_deu", "sof-dsk_deu_allversions"));
-    System.out.println(logicalPlan.toJsonString(config));
-    return true;
+    LogicalPlan logicalPlan = PlanParser.getInstance().parse(sql);
+    return logicalPlan.toJsonString(config);
   }
   
   private boolean executePlan(String logicPlanFile, String resultFile) throws Exception{
@@ -86,7 +144,7 @@ public class QuerySlaveTest {
 
     List<LogicalPlan> logicalPlans = new ArrayList<LogicalPlan>();
     for(String sql: sqls){
-      logicalPlans.add(PlanParser.getInstance().parse(sql.replace("sof-dsk_deu", "sof-dsk_deu_allversions")));
+      logicalPlans.add(PlanParser.getInstance().parse(preProcessSql(sql)));
     }
     LogicalPlan logicalPlan = LogicPlanMerger.getInstance().merge(logicalPlans);
     
@@ -110,7 +168,12 @@ public class QuerySlaveTest {
   }
   
   @Test
-  public void testOnlyMysql(){
+  public void testMysql(){
+    
+  }
+  
+  @Test
+  public void testHBase(){
     
   }
   
@@ -119,80 +182,21 @@ public class QuerySlaveTest {
     assertTrue(executePlan("/TransformTest.plan", "/TransformTest.result"));
   }
 
-//  @Test
-//  public void testXX() throws Exception{
-//    assertTrue(executePlan("/xx.plan"));
-//  }
-
   @Test
   public void testSecondDaysRetained() throws Exception{
-    //mysql
-    //String sql = new String("Select fix_sof-dsk.uid FROM fix_sof-dsk WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000").replace("-","xadrill");
-
-    //hbase
-    //String sql = new String("Select sof-dsk_deu.uid from sof-dsk_deu where sof-dsk_deu.date='20130102' and sof-dsk_deu.l0='visit'").replace("-","xadrill");
-
-//    String sql= "Select count(distinct sof-dsk_deu.uid) " +
-//        "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
-//        "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
-
-    Pair<byte[], byte[]> startEndRowKey = HBaseEventUtils.getStartEndRowKey("20130102","20130102", new ArrayList<String>(){{add("visit.");}}, 0, 256);
-    String starRowKey = Base64.encode(startEndRowKey.getFirst());
-    String endRowKey = Base64.encode(startEndRowKey.getSecond());
-        
-    String sql= "Select count(distinct deu_uid(sof-dsk_deu.row)) " +
-      "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=deu_uid(sof-dsk_deu.row)) " +
-      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and (deu_event(sof-dsk_deu.row) like 'visit.') " +
-      "and bit_compare(sof-dsk_deu.row,'" +
-      starRowKey+
-      "')>=0 and bit_compare(sof-dsk_deu.row,'"+
-      endRowKey+"')<0";
-   assertTrue(executeSql(sql));
+   assertTrue(executeSql(sqlSecondDayRetained));
 
   }
 
   @Test
   public void testMin5() throws Exception{
-
-    //5mau 5mvisit
-    String sql = "select count(0), count(distinct sof-dsk_deu.uid) " +
-        "from sof-dsk_deu "+
-        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' " +
-        "group by min5(sof-dsk_deu.ts)";
-
-    //dau
-    String sql2 = "select count(distinct sof-dsk_deu.uid) " +
-        "from sof-dsk_deu "+
-        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225'";
-
-    //5mau
-    String sql3 = "select count(0) " +
-        "from sof-dsk_deu "+
-        "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225'";
-
-
-    String sql4 = "SELECT count(distinct fix_sof-dsk.uid) FROM fix_sof-dsk   WHERE fix_sof-dsk.register_time>=20130228180000 and fix_sof-dsk.register_time<=20140101000000 and fix_sof-dsk.language >= 'it'" ;
-    //assertTrue(executeSql(sql4));
+    assertTrue(executeSql(sql5min));
   }
   
   @Test
-  public void testRpc() throws Exception{
-    String sql5min = "select count(0), count(distinct sof-dsk_deu.uid) " +
-      "from sof-dsk_deu " +
-      "where sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130225' " +
-      "group by min5(sof-dsk_deu.ts)";
-
-    String sqlSecondDaysRetained= "Select count(distinct sof-dsk_deu.uid) " +
-      "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=sof-dsk_deu.uid) " +
-      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.l0='visit' and sof-dsk_deu.date='20130102'";
-    
-    String wzj=" SELECT COUNT(DISTINCT sof-dsk_deu.uid) FROM (sof-dsk_deu INNER JOIN fix_sof-dsk ON sof-dsk_deu.uid = fix_sof-dsk.uid) WHERE sof-dsk_deu.l0 = 'visit' AND sof-dsk_deu.date >= '20130301' AND sof-dsk_deu.date <= '20130301'";
-    String sql4 = "SELECT count(distinct fix_sof-dsk.uid) FROM fix_sof-dsk   WHERE fix_sof-dsk.register_time>=20130228180000 and fix_sof-dsk.register_time<=20140101000000 and fix_sof-dsk.language >= 'it'" ;
+  public void testRpc() throws Exception{ 
     QuerySlave querySlave = new QuerySlave();
-    
-    String sql = sqlSecondDaysRetained.replace("sof-dsk_deu","sof-dsk_deu_allversions");
-    MapWritable mapWritable = querySlave.query(sql);
-
+    MapWritable mapWritable = querySlave.query(sql5min);
 
     for (MapWritable.Entry<Writable, Writable> entry : mapWritable.entrySet()) {
       Text key = (Text) entry.getKey();
@@ -218,7 +222,7 @@ public class QuerySlaveTest {
     
     String sql1 = "select sof-dsk_deu.row from sof-dsk_deu where (sof-dsk.row like '%visit%'  or sof-dsk_deu.row LIKE '%pay%')";
     String sql2 = "select sof-dsk_deu.row from sof-dsk_deu where sof-dsk_deu.row>='20130205' and (sof-dsk.row like '%visit%'  or sof-dsk_deu.row LIKE '%pay%')";
-    sqlToPlan(sql);
+    System.out.println(sqlToLogicalPlan(preProcessSql(sql)));
     
     assertTrue(executePlan("/like/LikeTest.plan", "/like/LikeTest.result"));
   }
@@ -229,65 +233,7 @@ public class QuerySlaveTest {
   }
   
   @Test
-  public void getUid() throws Exception{
-    
-  }
-  
-  @Test
-  public void testLogicalMerger() throws Exception{
-
-    String sql= "Select count(distinct substring(sof-dsk_deu.row, 0,3)) " +
-      "FROM (fix_sof-dsk INNER JOIN sof-dsk_deu ON fix_sof-dsk.uid=substring(sof-dsk_deu.row, 0, 3)) " +
-      "WHERE fix_sof-dsk.register_time>=20130101000000 and fix_sof-dsk.register_time<20130102000000 and sof-dsk_deu.row like 'visit' and sof-dsk_deu.row='20130225'";
-    
-    String sql1 = "select count(distinct substring(sof-dsk_deu.row, 0, 3)) " +
-      "from sof-dsk_deu "+
-      "where sof-dsk_deu.row like '%visit.*%' and sof-dsk_deu.row>='20130226' and sof-dsk_deu.row<'20130227'" +
-      "group by min5(sof-dsk_deu.ts)";
-    
-    String sql2 = "select sof-dsk_deu.row from sof-dsk_deu";
-    
-    List<LogicalPlan> logicalPlans = new ArrayList<LogicalPlan>();
-    logicalPlans.add(PlanParser.getInstance().parse(sql.replace("sof-dsk_deu", "sof-dsk_deu_allversions")));
-    logicalPlans.add(PlanParser.getInstance().parse(sql1.replace("sof-dsk_deu","sof-dsk_deu_allversions")));
-    logicalPlans.add(PlanParser.getInstance().parse(sql2.replace("sof-dsk_deu","sof-dsk_deu_allversions")));
-
-    DrillConfig config = DrillConfig.create();
-    LogicalPlan logicalPlan = LogicPlanMerger.getInstance().merge(logicalPlans);
-    System.out.println(logicalPlan.toJsonString(config));
-    
-    //construct rop
-    IteratorRegistry ir = new IteratorRegistry();
-    ReferenceInterpreter i = new ReferenceInterpreter(logicalPlan, ir, new BasicEvaluatorFactory(ir), new RSERegistry(config));
-    i.setup();
-  }
-
-  private LogicalExpression getLogicalExpressionFromString(String expr){
-    try{
-      ExprLexer lexer = new ExprLexer(new ANTLRStringStream(expr));
-      CommonTokenStream tokens = new CommonTokenStream(lexer);
-      ExprParser parser = new ExprParser(tokens);
-      parser.setRegistry(new FunctionRegistry(DrillConfig.create()));
-      ExprParser.parse_return ret = parser.parse();
-      return ret.e;
-    }catch (Exception e){
-      return null;
-    }
-  }
-  @Test
-  public void testRemoveExpression(){
-    String stringExpr = "fix_sof-dsk.register_time>=1 && (fix_sof-dsk.register_time<2 && sof-dsk_deu.row>3)";
-    //stringExpr = "( ( ( ('fix_sofxadrilldsk.register_time')  >= (20130101000000) )  && ( ('fix_sofxadrilldsk.register_time')  < (20130102000000) ) )  && ( ('sofxadrilldsk_deu_allversions.row')  like (\"visit\") ) )  && ( ('sofxadrilldsk_deu_allversions.row')  == (\"20130225\") ) ";
-    stringExpr = stringExpr.replace("-", "xadrill");
-    LogicalExpression expr = getLogicalExpressionFromString(stringExpr);
-    StringBuilder sb1 = new StringBuilder();
-    expr.addToString(sb1);
-    System.out.println(sb1.toString());
-    
-    Pair<Boolean, LogicalExpression> result=  LogicalPlanOptimizer.getInstance().removeExtraExpression(expr, "sofxadrilldsk_deu");
-    StringBuilder sb = new StringBuilder();
-    System.out.println(result.getFirst().toString());
-    result.getSecond().addToString(sb);
-    System.out.println(sb.toString());
+  public void testLogicalPlanMerger() throws Exception{
+    //assertTrue(executeSql(sql5min, sqlSecondDayRetained));
   }
 }

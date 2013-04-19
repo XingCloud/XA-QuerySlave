@@ -95,7 +95,7 @@ public class XAEvaluator {
     public ScalarValues.BooleanScalar eval(){
       String left =this.left.eval().getAsStringValue().getString().toString();
       String right= this.right.eval().getAsStringValue().getString().toString();
-      right = right.replace(".", "\\.").replace("?", ".").replace("%", ".*");
+      right = right.replace(".", "\\.").replace("?", ".").replace("*", ".*").replace("%", ".*");
       ScalarValues.BooleanScalar result = new ScalarValues.BooleanScalar(left.matches(right));
       return new ScalarValues.BooleanScalar(left.matches(right));
     }
