@@ -5,12 +5,11 @@ import org.apache.drill.exec.ref.RecordPointer;
 import org.apache.drill.exec.ref.UnbackedRecord;
 import org.apache.drill.exec.ref.exceptions.RecordException;
 import org.apache.drill.exec.ref.rops.ROP;
-import org.apache.drill.exec.ref.rse.RecordReader;
 import org.apache.drill.exec.ref.values.DataValue;
 import org.apache.drill.exec.ref.values.ScalarValues;
 import org.apache.drill.exec.ref.values.SimpleMapValue;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.regionserver.TableScanner;
+import org.apache.hadoop.hbase.regionserver.DirectScanner;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +18,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import org.apache.drill.exec.ref.ReferenceInterpreter;
 
 /**
  * Created with IntelliJ IDEA.
@@ -40,7 +38,7 @@ public class HBaseRecordReader implements RecordReader {
     private String l4;
 
     private long totalRecords = 0;
-    private List<TableScanner> scanners = new ArrayList<TableScanner>();
+    private List<DirectScanner> scanners = new ArrayList<DirectScanner>();
     private int currentScannerIndex = 0;
     private List<KeyValue> curRes = new ArrayList<KeyValue>();
     private int valIndex = -1;
@@ -50,7 +48,7 @@ public class HBaseRecordReader implements RecordReader {
     private SchemaPath rootPath;
     private UnbackedRecord record = new UnbackedRecord();
 
-    public HBaseRecordReader(String startDate, String endDate, String l0, String l1, String l2, String l3, String l4, ROP parent, SchemaPath rootPath) {
+    public HBaseRecordReader(String startDate, String endDate, String l0, String l1, String l2, String l3, String l4, ROP parent, SchemaPath rootPath) throws IOException {
         this.startDate = startDate;
         this.endDate = endDate;
         this.l0 = l0;
@@ -69,7 +67,7 @@ public class HBaseRecordReader implements RecordReader {
                 String erk = date + nextEvent;
                 LOG.info("Begin to init scanner for Start row key: " + srk + " End row key: " + erk + " Table name: " + tableName);
                 System.out.println("Begin to init scanner for Start row key: " + srk + " End row key: " + erk + " Table name: " + tableName);
-                TableScanner scanner = new TableScanner(srk.getBytes(), erk.getBytes(), tableName, false, false);
+                DirectScanner scanner = new DirectScanner(srk.getBytes(), erk.getBytes(), tableName, null, false, false);
                 scanners.add(scanner);
             }
         } catch (ParseException e) {
@@ -109,7 +107,7 @@ public class HBaseRecordReader implements RecordReader {
             return parent;
         }
 
-        private NextOutcome next(TableScanner scanner) throws IOException {
+        private NextOutcome next(DirectScanner scanner) throws IOException {
             if (valIndex == -1) {
                 if (scanner == null) {
                     return RecordIterator.NextOutcome.NONE_LEFT;
@@ -152,7 +150,7 @@ public class HBaseRecordReader implements RecordReader {
 
     @Override
     public void cleanup() {
-        for (TableScanner scanner : scanners) {
+        for (DirectScanner scanner : scanners) {
             try {
                 scanner.close();
             } catch (Exception e) {

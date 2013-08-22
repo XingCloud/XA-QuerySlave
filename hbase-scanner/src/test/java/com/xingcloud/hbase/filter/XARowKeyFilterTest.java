@@ -16,15 +16,13 @@ import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.filter.*;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.io.hfile.Compression;
-import org.apache.hadoop.hbase.regionserver.TableScanner;
+import org.apache.hadoop.hbase.regionserver.DirectScanner;
 import org.apache.hadoop.hbase.regionserver.metrics.SchemaMetrics;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.IOUtils;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -83,7 +81,7 @@ public class XARowKeyFilterTest {
             testEventSet1.remove(0);
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), testEventSet1, 0, 256);
             Filter filter = HBaseEventUtils.getRowKeyFilter(testEventSet1, dates);
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
 
@@ -103,7 +101,7 @@ public class XARowKeyFilterTest {
             testEventSet2.remove(1);
             Pair<byte[], byte[]> pair2 = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), testEventSet2, 0, 256);
             Filter filter2 = HBaseEventUtils.getRowKeyFilter(testEventSet2, dates);
-            TableScanner scanner2 = new TableScanner(pair2.getFirst(), pair2.getSecond(), tableName, filter2, false, false);
+            DirectScanner scanner2 = new DirectScanner(pair2.getFirst(), pair2.getSecond(), tableName, filter2, false, false);
             List<KeyValue> results2 = new ArrayList<KeyValue>();
             while (scanner2.next(results2));
             assertEquals(5400, results2.size());
@@ -121,7 +119,7 @@ public class XARowKeyFilterTest {
             testEventSet3.remove(sortedEvents.size()-1);
             Pair<byte[], byte[]> pair3 = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), testEventSet3, 0, 256);
             Filter filter2 = HBaseEventUtils.getRowKeyFilter(testEventSet3, dates);
-            TableScanner scanner3 = new TableScanner(pair3.getFirst(), pair3.getSecond(), tableName, filter2, false, false);
+            DirectScanner scanner3 = new DirectScanner(pair3.getFirst(), pair3.getSecond(), tableName, filter2, false, false);
             List<KeyValue> results2 = new ArrayList<KeyValue>();
             while (scanner3.next(results2));
             assertEquals(5400, results2.size());
@@ -139,7 +137,7 @@ public class XARowKeyFilterTest {
             testDates1.remove(0);
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(testDates1.get(0)), String.valueOf(endDate), sortedEvents, 0, 256);
             Filter filter = HBaseEventUtils.getRowKeyFilter(sortedEvents, testDates1);
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
             assertEquals(4200, results.size());
@@ -158,7 +156,7 @@ public class XARowKeyFilterTest {
             testDates1.remove(1);
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), sortedEvents, 0, 256);
             Filter filter = HBaseEventUtils.getRowKeyFilter(sortedEvents, testDates1);
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
             assertEquals(4200, results.size());
@@ -175,7 +173,7 @@ public class XARowKeyFilterTest {
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), sortedEvents, 0, 1);
             Pair<Long, Long> uidPair = HBaseEventUtils.getStartEndUidPair(0, 1);
             Filter filter = HBaseEventUtils.getRowKeyFilter(sortedEvents, dates, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
             assertEquals(42, results.size());
@@ -194,7 +192,7 @@ public class XARowKeyFilterTest {
 
             Pair<Long, Long> uidPair = HBaseEventUtils.getStartEndUidPair(127, 1);
             Filter filter = HBaseEventUtils.getRowKeyFilter(sortedEvents, dates, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
 
@@ -215,7 +213,7 @@ public class XARowKeyFilterTest {
 
             Pair<Long, Long> uidPair = HBaseEventUtils.getStartEndUidPair(255, 1);
             Filter filter = HBaseEventUtils.getRowKeyFilter(sortedEvents, dates, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
 
@@ -236,7 +234,7 @@ public class XARowKeyFilterTest {
 
             Pair<Long, Long> uidPair = HBaseEventUtils.getStartEndUidPair(128, 2);
             Filter filter = HBaseEventUtils.getRowKeyFilter(sortedEvents, dates, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
             assertEquals(84, results.size());
@@ -259,7 +257,7 @@ public class XARowKeyFilterTest {
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), testEventSet1, 0, 1);
 
             Filter filter = HBaseEventUtils.getRowKeyFilter(testEventSet1, dates, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
             assertEquals(36, results.size());
@@ -282,7 +280,7 @@ public class XARowKeyFilterTest {
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), testEventSet1, 80, 2);
 
             Filter filter = HBaseEventUtils.getRowKeyFilter(testEventSet1, dates, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
 
@@ -311,7 +309,7 @@ public class XARowKeyFilterTest {
             Pair<byte[], byte[]> pair = HBaseEventUtils.getStartEndRowKey(String.valueOf(startDate), String.valueOf(endDate), testEventSet1, 80, 2);
 
             Filter filter = HBaseEventUtils.getRowKeyFilter(testEventSet1, testDates1, uidPair.getFirst(), uidPair.getSecond());
-            TableScanner scanner = new TableScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
+            DirectScanner scanner = new DirectScanner(pair.getFirst(), pair.getSecond(), tableName, filter, false, false);
             List<KeyValue> results = new ArrayList<KeyValue>();
             while (scanner.next(results));
 

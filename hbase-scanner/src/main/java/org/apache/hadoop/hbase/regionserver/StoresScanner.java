@@ -1,5 +1,6 @@
 package org.apache.hadoop.hbase.regionserver;
 
+import com.xingcloud.hbase.manager.HBaseResourceManager;
 import com.xingcloud.hbase.meta.HBaseMeta;
 import com.xingcloud.hbase.util.FileManager;
 
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Time: 下午3:40
  * To change this template use File | Settings | File Templates.
  */
-public class HFileScanner implements DataScanner {
+public class StoresScanner implements XAScanner {
   private static Logger LOG = LoggerFactory.getLogger(RegionScanner.class);
 
   private final String familyName = "val";
@@ -71,7 +72,9 @@ public class HFileScanner implements DataScanner {
   private final KeyValue KV_LIMIT = new KeyValue();
 
 
-  public HFileScanner(HRegionInfo hRegionInfo, Scan scan) throws IOException {
+  Map<byte[], KeyValueScanner> storeScanners = (Map<byte[], KeyValueScanner>) new ArrayList<KeyValueScanner>();
+
+  public StoresScanner(HRegionInfo hRegionInfo, Scan scan) throws IOException {
     InetAddress addr = InetAddress.getLocalHost();
     this.ip = addr.getHostAddress();
 
@@ -95,7 +98,6 @@ public class HFileScanner implements DataScanner {
     initColFamily(hRegionInfo, familyName);
     initStoreFiles(hRegionInfo);
     initKVScanners(scan);
-
   }
 
   private void initColFamily(HRegionInfo hRegionInfo, String familyName) {
@@ -128,10 +130,10 @@ public class HFileScanner implements DataScanner {
     String tableDir = HBaseMeta.getTablePath(hRegionInfo.getTableNameAsString(), conf);
     String regionName = getRegionName(hRegionInfo);
     String regionPath = tableDir + regionName + "/val/";
-        /* Get store file path list */
+    /* Get store file path list */
     List<Path> storeFilePaths = FileManager.listDirPath(regionPath);
     Collections.sort(storeFilePaths);
-        /* Init each store file */
+    /* Init each store file */
     for (Path path : storeFilePaths) {
       StoreFile sf = openStoreFile(path);
       storeFiles.add(sf);
@@ -150,7 +152,6 @@ public class HFileScanner implements DataScanner {
 
   private void initKVScanners(Scan scan) {
     LOG.info("Init KV scanner...");
-    List<KeyValueScanner> kvScanners = new ArrayList<KeyValueScanner>();
     try {
       long timeToPurgeDeletes =
               Math.max(conf.getLong("hbase.hstore.time.to.purge.deletes", 0), 0);
@@ -161,31 +162,36 @@ public class HFileScanner implements DataScanner {
 
       for (Map.Entry<byte[], NavigableSet<byte[]>> entry :
               scan.getFamilyMap().entrySet()) {
-        this.matcher = new ScanQueryMatcher(scan, this.scanInfo, entry.getValue(), StoreScanner.ScanType.USER_SCAN,
+        this.matcher = new ScanQueryMatcher(scan, this.scanInfo, entry.getValue(), ScanType.USER_SCAN,
                 Long.MAX_VALUE, HConstants.LATEST_TIMESTAMP, oldestUnexpiredTS);
         List<StoreFileScanner> sfScanners = StoreFileScanner.getScannersForStoreFiles(storeFiles, false, false);
         this.scanners = new ArrayList<KeyValueScanner>(sfScanners.size());
         this.scanners.addAll(sfScanners);
 
-        StoreScanner storeScanner = new StoreScanner(scan, scanInfo, StoreScanner.ScanType.USER_SCAN, entry.getValue(), scanners);
-        kvScanners.add(storeScanner);
-                /* Only have one column family */
-        break;
+        StoreScanner storeScanner = new StoreScanner(scan, scanInfo, ScanType.USER_SCAN, entry.getValue(), scanners);
+        storeScanners.put(entry.getKey(), storeScanner);
+        break; /* Only have one column family */
       }
-      this.storeHeap = new KeyValueHeap(kvScanners, this.comparator);
+      this.storeHeap = new KeyValueHeap((List<? extends KeyValueScanner>) storeScanners.values(), this.comparator);
     } catch (Exception e) {
       e.printStackTrace();
       LOG.error("initKVScanners got exception! MSG: " + e.getMessage());
     }
 
   }
+  
 
+  
+  public void updateScanner(byte[] family) throws IOException {
+    ((StoreScanner)storeScanners.get(family)).updateReaders();     
+  }
+  
   public boolean next(List<KeyValue> outResults) throws IOException {
     boolean hasMore = next(outResults, batch);
     numKV.addAndGet(outResults.size());
     return hasMore;
   }
-
+  
   public boolean next(List<KeyValue> outResults, int limit) throws IOException {
     results.clear();
     boolean returnResult = nextInternal(limit);

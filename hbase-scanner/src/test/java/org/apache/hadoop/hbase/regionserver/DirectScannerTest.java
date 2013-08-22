@@ -36,7 +36,7 @@ import static org.junit.Assert.assertEquals;
  * Date: 13-4-1
  * Time: 下午4:11
  */
-public class TableScannerTest {
+public class DirectScannerTest {
 
   private String tableName = "hbasescanner_test";
 
@@ -92,9 +92,9 @@ public class TableScannerTest {
     IOUtils.closeStream(hTable);
 
     //memonly有数据
-    TableScanner memOnlyTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, true);
+    DirectScanner memOnlyDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, true);
     List<KeyValue> results = new ArrayList<KeyValue>();
-    while (memOnlyTableScanner.next(results)) ;
+    while (memOnlyDirectScanner.next(results)) ;
 
 
     assertEquals(count, results.size());
@@ -105,14 +105,14 @@ public class TableScannerTest {
 
       assertEquals(Bytes.toString(expectRowKey), Bytes.toString(results.get(i).getRow()));
     }
-    memOnlyTableScanner.close();
+    memOnlyDirectScanner.close();
 
     //fileonly为空
-    TableScanner fileOnlyTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, true, false);
+    DirectScanner fileOnlyDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, true, false);
     results = new ArrayList<KeyValue>();
-    while (fileOnlyTableScanner.next(results)) ;
+    while (fileOnlyDirectScanner.next(results)) ;
     assertEquals(0, results.size());
-    fileOnlyTableScanner.close();
+    fileOnlyDirectScanner.close();
   }
 
 
@@ -144,25 +144,25 @@ public class TableScannerTest {
     IOUtils.closeStream(hBaseAdmin);
 
     //memonly should be empty
-    TableScanner memOnlyTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, true);
+    DirectScanner memOnlyDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, true);
     List<KeyValue> results = new ArrayList<KeyValue>();
-    while (memOnlyTableScanner.next(results)) ;
+    while (memOnlyDirectScanner.next(results)) ;
     assertEquals(0, results.size());
-    memOnlyTableScanner.close();
+    memOnlyDirectScanner.close();
 
 
     //hfile
-    TableScanner fileOnlyTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, true, false);
+    DirectScanner fileOnlyDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, true, false);
     results = new ArrayList<KeyValue>();
-    fileOnlyTableScanner.next(results);
-    while (fileOnlyTableScanner.next(results)) ;
+    fileOnlyDirectScanner.next(results);
+    while (fileOnlyDirectScanner.next(results)) ;
     for (int i = 0; i < count; i++) {
       long value = Bytes.toLong(results.get(i).getValue());
       long md5Uid = UidMappingUtil.getInstance().decorateWithMD5(value);
       byte[] expectRowKey = UidMappingUtil.getInstance().getRowKeyV2(date, event, md5Uid);
       assertEquals(Bytes.toString(expectRowKey), Bytes.toString(results.get(i).getRow()));
     }
-    fileOnlyTableScanner.close();
+    fileOnlyDirectScanner.close();
   }
 
   /**
@@ -188,16 +188,16 @@ public class TableScannerTest {
     Filter valFilter = new ValueFilter(CompareFilter.CompareOp.EQUAL, new LongComparator(Bytes.toBytes(equalValue)));
     eqFilterList.addFilter(valFilter);
 
-    TableScanner eqOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, eqFilterList, false, true);
+    DirectScanner eqOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, eqFilterList, false, true);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    while (eqOperatorTableScanner.next(results)) ;
+    while (eqOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size(), results.size());
     for (KeyValue keyValue : results) {
       assertEquals(equalValue, Bytes.toLong(keyValue.getValue()));
     }
 
-    eqOperatorTableScanner.close();
+    eqOperatorDirectScanner.close();
   }
 
 
@@ -229,15 +229,15 @@ public class TableScannerTest {
     Filter valFilter = new ValueFilter(CompareFilter.CompareOp.EQUAL, new LongComparator(Bytes.toBytes(equalValue)));
     eqFilterList.addFilter(valFilter);
 
-    TableScanner eqOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, eqFilterList, true, false);
+    DirectScanner eqOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, eqFilterList, true, false);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    while (eqOperatorTableScanner.next(results)) ;
+    while (eqOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size(), results.size());
     for (KeyValue keyValue : results) {
       assertEquals(equalValue, Bytes.toLong(keyValue.getValue()));
     }
-    eqOperatorTableScanner.close();
+    eqOperatorDirectScanner.close();
   }
 
   /**
@@ -261,11 +261,11 @@ public class TableScannerTest {
     Filter filter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(GEValue)));
     geFilterList.addFilter(filter);
 
-    TableScanner geOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, geFilterList, false, true);
+    DirectScanner geOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, geFilterList, false, true);
     List<KeyValue> results = new ArrayList<KeyValue>();
-    while (geOperatorTableScanner.next(results)) ;
+    while (geOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - GEValue), results.size());
-    geOperatorTableScanner.close();
+    geOperatorDirectScanner.close();
   }
 
   /**
@@ -294,11 +294,11 @@ public class TableScannerTest {
     Filter filter = new ValueFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new LongComparator(Bytes.toBytes(GEValue)));
     geFilterList.addFilter(filter);
 
-    TableScanner geOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, geFilterList, true, false);
+    DirectScanner geOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, geFilterList, true, false);
     List<KeyValue> results = new ArrayList<KeyValue>();
-    while (geOperatorTableScanner.next(results)) ;
+    while (geOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - GEValue), results.size());
-    geOperatorTableScanner.close();
+    geOperatorDirectScanner.close();
   }
 
 
@@ -325,10 +325,10 @@ public class TableScannerTest {
     gtFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner gtOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, gtFilterList, false, true);
-    while (gtOperatorTableScanner.next(results)) ;
+    DirectScanner gtOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, gtFilterList, false, true);
+    while (gtOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - GTValue - 1), results.size());
-    gtOperatorTableScanner.close();
+    gtOperatorDirectScanner.close();
   }
 
   /**
@@ -359,10 +359,10 @@ public class TableScannerTest {
     geFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner gtOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, geFilterList, true, false);
-    while (gtOperatorTableScanner.next(results)) ;
+    DirectScanner gtOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, geFilterList, true, false);
+    while (gtOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - GTValue - 1), results.size());
-    gtOperatorTableScanner.close();
+    gtOperatorDirectScanner.close();
   }
 
 
@@ -388,10 +388,10 @@ public class TableScannerTest {
     leFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner leOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, leFilterList, false, true);
-    while (leOperatorTableScanner.next(results)) ;
+    DirectScanner leOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, leFilterList, false, true);
+    while (leOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (LEValue + 1), results.size());
-    leOperatorTableScanner.close();
+    leOperatorDirectScanner.close();
   }
 
   /**
@@ -421,10 +421,10 @@ public class TableScannerTest {
     leFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner leOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, leFilterList, true, false);
-    while (leOperatorTableScanner.next(results)) ;
+    DirectScanner leOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, leFilterList, true, false);
+    while (leOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (LEValue + 1), results.size());
-    leOperatorTableScanner.close();
+    leOperatorDirectScanner.close();
   }
 
 
@@ -450,10 +450,10 @@ public class TableScannerTest {
     ltFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner ltOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, ltFilterList, false, true);
-    while (ltOperatorTableScanner.next(results)) ;
+    DirectScanner ltOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, ltFilterList, false, true);
+    while (ltOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * LTValue, results.size());
-    ltOperatorTableScanner.close();
+    ltOperatorDirectScanner.close();
   }
 
 
@@ -485,10 +485,10 @@ public class TableScannerTest {
     ltFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner ltOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, ltFilterList, true, false);
-    while (ltOperatorTableScanner.next(results)) ;
+    DirectScanner ltOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, ltFilterList, true, false);
+    while (ltOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * LTValue, results.size());
-    ltOperatorTableScanner.close();
+    ltOperatorDirectScanner.close();
 
   }
 
@@ -515,10 +515,10 @@ public class TableScannerTest {
     neFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner neOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, neFilterList, false, true);
-    while (neOperatorTableScanner.next(results)) ;
+    DirectScanner neOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, neFilterList, false, true);
+    while (neOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - 1), results.size());
-    neOperatorTableScanner.close();
+    neOperatorDirectScanner.close();
   }
 
   /**
@@ -549,10 +549,10 @@ public class TableScannerTest {
     neFilterList.addFilter(valFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner neOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, neFilterList, true, false);
-    while (neOperatorTableScanner.next(results)) ;
+    DirectScanner neOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, neFilterList, true, false);
+    while (neOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (count - 1), results.size());
-    neOperatorTableScanner.close();
+    neOperatorDirectScanner.close();
   }
 
 
@@ -582,10 +582,10 @@ public class TableScannerTest {
     btFilterList.addFilter(rightValueFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner btOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, btFilterList, false, true);
-    while (btOperatorTableScanner.next(results)) ;
+    DirectScanner btOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, btFilterList, false, true);
+    while (btOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (rightValue - leftValue + 1), results.size());
-    btOperatorTableScanner.close();
+    btOperatorDirectScanner.close();
   }
 
   /**
@@ -619,10 +619,10 @@ public class TableScannerTest {
     btFilterList.addFilter(rightValueFilter);
 
     List<KeyValue> results = new ArrayList<KeyValue>();
-    TableScanner btOperatorTableScanner = new TableScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, btFilterList, true, false);
-    while (btOperatorTableScanner.next(results)) ;
+    DirectScanner btOperatorDirectScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, btFilterList, true, false);
+    while (btOperatorDirectScanner.next(results)) ;
     assertEquals(sortEvents.size() * (rightValue - leftValue + 1), results.size());
-    btOperatorTableScanner.close();
+    btOperatorDirectScanner.close();
   }
 
   private void putFilterDataIntoHBase(List<String> sortEvents, String date, int count) throws IOException {
