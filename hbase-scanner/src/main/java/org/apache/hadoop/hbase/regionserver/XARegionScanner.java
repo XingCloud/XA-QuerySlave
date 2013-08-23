@@ -24,8 +24,13 @@ public class XARegionScanner implements XAScanner{
   private KeyValue.KVComparator comparator;
   
   public XARegionScanner(HRegionInfo hRegionInfo, Scan scan) throws IOException {
-    memstoresScanner = new MemstoresScanner(hRegionInfo, scan);
-    storesScanner = new StoresScanner(hRegionInfo, scan);
+    if(!scan.isFilesOnly()){
+      memstoresScanner = new MemstoresScanner(hRegionInfo, scan);
+    }
+    
+    if(!scan.isMemOnly()){
+      storesScanner = new StoresScanner(hRegionInfo, scan);
+    }
     comparator = hRegionInfo.getComparator();
     firstScan();
   }
@@ -49,37 +54,51 @@ public class XARegionScanner implements XAScanner{
     }
 
     theNext = getLowest(MSNext, SSNext);
-
-    return new ArrayList<KeyValue>().add(ret);
+    
+    results.add(ret);
+    
+    return ret == null;
   }
 
   @Override
   public void close() throws IOException {
-    memstoresScanner.close();
-    storesScanner.close();
+    if(memstoresScanner != null){
+      memstoresScanner.close();
+    }  
+    if(storesScanner != null){
+      storesScanner.close();
+    }
   }
 
   private Queue<KeyValue> MSKVCache = new LinkedList<KeyValue>();
+  
   public KeyValue getKVFromMS() throws IOException {
-    if(0 == MSKVCache.size()){
-      List<KeyValue> results = new ArrayList<KeyValue>();
-      if(memstoresScanner.next(results)){
-        MSKVCache.addAll(results);
-      }else{
-        return null;
+    if (null == memstoresScanner) return null;
+    
+    while(true){
+      if(0 == MSKVCache.size()){
+        List<KeyValue> results = new ArrayList<KeyValue>();
+        if(memstoresScanner.next(results)){
+          MSKVCache.addAll(results);
+        }else{
+          return null;
+        }
+      }
+
+      KeyValue kv = MSKVCache.poll();
+      if(Bytes.compareTo(kv.getRow(), Bytes.toBytes("flush")) == 0){
+        storesScanner.updateScanner(kv.getFamily());  
+      }else {
+        return kv;
       }
     }
-
-    KeyValue kv = MSKVCache.poll();
-    if(Bytes.compareTo(kv.getRow(), Bytes.toBytes("flush")) == 0){
-      storesScanner.updateScanner(kv.getFamily());
-      kv = MSKVCache.poll();
-    }
-    return kv;
   }
 
   private Queue<KeyValue> SSKVCache = new LinkedList<KeyValue>();
+  
   public KeyValue getKVFromSS() throws IOException {
+    if(null== storesScanner) return null;
+    
     if(0 == SSKVCache.size()){
       List<KeyValue> results = new ArrayList<KeyValue>();
       if(storesScanner.next(results)){

@@ -39,6 +39,11 @@ public class DirectScanner implements XAScanner {
   private boolean hasNext;
   private Scan scan;
   
+  public DirectScanner(byte[] startRowKey, byte[] endRowKey, String tableName,
+                       boolean isFileOnly, boolean isMemOnly) throws IOException {  
+    this(startRowKey, endRowKey, tableName, null, isFileOnly, isMemOnly);
+  }
+  
   public DirectScanner(byte[] startRowKey, byte[] endRowKey, String tableName, Filter filter,
                        boolean isFileOnly, boolean isMemOnly) throws IOException {
     this.isFileOnly = isFileOnly;
@@ -58,7 +63,7 @@ public class DirectScanner implements XAScanner {
     
     // get regions 
     Pair<byte[], byte[]> seKey = new Pair(startRowKey, endRowKey);
-    HTable table = HBaseResourceManager.getInstance().getTable(Bytes.toBytes(tableName));
+    HTable table = (HTable) HBaseResourceManager.getInstance().getTable(Bytes.toBytes(tableName)).getWrappedTable();
     this.regionList = Helper.getRegionInfoList(table, seKey);
     LOG.info("Number of regions: " + regionList.size() + " for " + tableName + " " + startRowKey + " " + endRowKey);
   }
@@ -75,8 +80,7 @@ public class DirectScanner implements XAScanner {
     }
     
     hasNext = currentScanner.next(results);
-    
-    return true;
+    return hasNext;
   }
 
   private boolean checkScanner() throws IOException {

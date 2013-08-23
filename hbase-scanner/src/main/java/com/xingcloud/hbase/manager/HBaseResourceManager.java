@@ -35,8 +35,8 @@ public class HBaseResourceManager {
         this.pool = new HTablePool(conf, max_size);
     }
     
-    public HTable getTable(byte[] tableName) throws IOException {
-        return (HTable) pool.getTable(tableName);
+    public HTablePool.PooledHTable getTable(byte[] tableName) throws IOException {
+        return (HTablePool.PooledHTable) pool.getTable(tableName);
     }
     
     public HTable getTable(String tableName) throws IOException {

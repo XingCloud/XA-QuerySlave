@@ -53,7 +53,7 @@ public class MemstoresScanner implements XAScanner {
 
     LOG.info("Init memstore scanner finished. Taken: " + (System.nanoTime() - st) / 1.0e9 + " sec");
     
-    HTable table = HBaseResourceManager.getInstance().getTable(hRegionInfo.getTableName());
+    HTable table = (HTable) HBaseResourceManager.getInstance().getTable(hRegionInfo.getTableName()).getWrappedTable();
     try {
       rs = table.getScanner(memScan);
     } catch (IOException e) {
