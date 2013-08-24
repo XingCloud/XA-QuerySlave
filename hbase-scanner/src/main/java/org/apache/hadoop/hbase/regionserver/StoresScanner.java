@@ -34,7 +34,7 @@ public class StoresScanner implements XAScanner {
   private static Logger LOG = LoggerFactory.getLogger(RegionScanner.class);
 
   private final String familyName = "val";
-  private final int batch = 1000;
+  private final int batch = 1;//todo
 
   private Scan scan;
 
@@ -72,7 +72,7 @@ public class StoresScanner implements XAScanner {
   private final KeyValue KV_LIMIT = new KeyValue();
 
 
-  Map<byte[], KeyValueScanner> storeScanners = (Map<byte[], KeyValueScanner>) new ArrayList<KeyValueScanner>();
+  Map<String, KeyValueScanner> storeScanners =  new HashMap<String, KeyValueScanner>();
 
   public StoresScanner(HRegionInfo hRegionInfo, Scan scan) throws IOException {
     InetAddress addr = InetAddress.getLocalHost();
@@ -169,10 +169,10 @@ public class StoresScanner implements XAScanner {
         this.scanners.addAll(sfScanners);
 
         StoreScanner storeScanner = new StoreScanner(scan, scanInfo, ScanType.USER_SCAN, entry.getValue(), scanners);
-        storeScanners.put(entry.getKey(), storeScanner);
+        storeScanners.put(Bytes.toString(entry.getKey()), storeScanner);
         break; /* Only have one column family */
       }
-      this.storeHeap = new KeyValueHeap((List<? extends KeyValueScanner>) storeScanners.values(), this.comparator);
+      this.storeHeap = new KeyValueHeap(new ArrayList<KeyValueScanner>(storeScanners.values()), this.comparator);
     } catch (Exception e) {
       e.printStackTrace();
       LOG.error("initKVScanners got exception! MSG: " + e.getMessage());
@@ -180,10 +180,11 @@ public class StoresScanner implements XAScanner {
 
   }
   
-
-  
-  public void updateScanner(byte[] family) throws IOException {
-    ((StoreScanner)storeScanners.get(family)).updateReaders();     
+  public void updateScanner(byte[] family, KeyValue theNext) throws IOException {
+    //((StoreScanner)storeScanners.get(Bytes.toString(family))).updateReaders();
+    initStoreFiles(hRegionInfo);
+    initKVScanners(scan);
+    storeScanners.get(Bytes.toString(family)).seek(theNext);
   }
   
   public boolean next(List<KeyValue> outResults) throws IOException {

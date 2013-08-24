@@ -103,11 +103,7 @@ public class DirectScanner implements XAScanner {
   
   @Override
   public void close() throws IOException {
-    for (XAScanner regionScanner : scanners) {
-      if (regionScanner != null) {
-        regionScanner.close();
-      }
-    }
+    // do nothing
   }
 
   public static void main(String[] args) throws IOException {

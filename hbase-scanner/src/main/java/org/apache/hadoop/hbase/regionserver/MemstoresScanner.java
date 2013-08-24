@@ -46,9 +46,11 @@ public class MemstoresScanner implements XAScanner {
       endRowKey = scan.getStopRow();
     }
     Scan memScan = new Scan(startRowKey, endRowKey);
-
+    
     memScan.setMaxVersions();
     memScan.setMemOnly(true);
+    if (scan.getFilter() != null)
+      memScan.setFilter(scan.getFilter());
     memScan.addColumn(Bytes.toBytes("val"), Bytes.toBytes("val"));
 
     LOG.info("Init memstore scanner finished. Taken: " + (System.nanoTime() - st) / 1.0e9 + " sec");

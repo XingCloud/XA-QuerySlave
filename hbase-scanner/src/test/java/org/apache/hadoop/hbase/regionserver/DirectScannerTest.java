@@ -166,6 +166,41 @@ public class DirectScannerTest {
   }
 
   /**
+   * 
+   */
+  
+  @Test
+  public void testHalfwayFlush() throws IOException, InterruptedException {
+    //insert some rows
+    HTable hTable = new HTable(conf, tableName);
+    int count = 9;
+    String date = "20130101";
+    String nextDate = "20130102";
+    String event = "visit.";
+    for (int i = 0; i < count; i++) {
+      long md5Uid = UidMappingUtil.getInstance().decorateWithMD5(i);
+      byte[] rowKey = UidMappingUtil.getInstance().getRowKeyV2(date, event, md5Uid);
+      Put put = new Put(rowKey);
+      put.setWriteToWAL(false);
+      put.add("val".getBytes(), "val".getBytes(), System.currentTimeMillis(), Bytes.toBytes((long) i));
+      hTable.put(put);
+    }
+    IOUtils.closeStream(hTable);
+
+    //memonly有数据
+    DirectScanner directScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, false);
+    List<KeyValue> results = new ArrayList<KeyValue>();
+    while (directScanner.next(results)){
+      //flush memstore
+      HBaseAdmin hBaseAdmin = new HBaseAdmin(conf);
+      hBaseAdmin.flush(tableName);
+      IOUtils.closeStream(hBaseAdmin);        
+    }
+
+    assertEquals(9, results.size());
+  }
+  
+  /**
    * Test value equal operator filter.
    *
    * @throws IOException

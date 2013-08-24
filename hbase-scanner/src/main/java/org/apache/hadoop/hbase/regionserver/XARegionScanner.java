@@ -55,9 +55,11 @@ public class XARegionScanner implements XAScanner{
 
     theNext = getLowest(MSNext, SSNext);
     
-    results.add(ret);
+    if(ret != null){
+      results.add(ret);
+    }
     
-    return ret == null;
+    return ret != null;
   }
 
   @Override
@@ -87,7 +89,12 @@ public class XARegionScanner implements XAScanner{
 
       KeyValue kv = MSKVCache.poll();
       if(Bytes.compareTo(kv.getRow(), Bytes.toBytes("flush")) == 0){
-        storesScanner.updateScanner(kv.getFamily());  
+        if(storesScanner != null){
+          storesScanner.updateScanner(kv.getFamily(), theNext); //todo
+          if(SSNext == null){
+            SSNext = getKVFromSS();
+          }
+        }
       }else {
         return kv;
       }
@@ -101,11 +108,11 @@ public class XARegionScanner implements XAScanner{
     
     if(0 == SSKVCache.size()){
       List<KeyValue> results = new ArrayList<KeyValue>();
-      if(storesScanner.next(results)){
-        SSKVCache.addAll(results);
-      }else{
-        return null;
+      if(!storesScanner.next(results)){//todo when to stop
+//        storesScanner.close();
+//        storesScanner = null;
       }
+      SSKVCache.addAll(results);
     }
 
     return SSKVCache.poll();
