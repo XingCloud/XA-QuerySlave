@@ -166,7 +166,7 @@ public class DirectScannerTest {
   }
 
   /**
-   * 
+   * test halfway flush
    */
   
   @Test
@@ -197,6 +197,63 @@ public class DirectScannerTest {
       IOUtils.closeStream(hBaseAdmin);        
     }
 
+    for (KeyValue kv:results){
+      System.out.println(Bytes.toLong(kv.getValue()));
+    }
+    assertEquals(9, results.size());
+  }
+  
+  @Test
+  public void testBothFileAndMem() throws IOException, InterruptedException {
+    //insert some rows
+    HTable hTable = new HTable(conf, tableName);
+    int count = 9;
+    String date = "20130101";
+    String nextDate = "20130102";
+    String event = "visit.";
+    for (int i = 0; i < count; i++) {
+      long md5Uid = UidMappingUtil.getInstance().decorateWithMD5(i);
+      byte[] rowKey = UidMappingUtil.getInstance().getRowKeyV2(date, event, md5Uid);
+      Put put = new Put(rowKey);
+      put.setWriteToWAL(false);
+      put.add("val".getBytes(), "val".getBytes(), System.currentTimeMillis(), Bytes.toBytes((long) i));
+      hTable.put(put);
+      if(i==4){
+        //flush memstore
+        HBaseAdmin hBaseAdmin = new HBaseAdmin(conf);
+        hBaseAdmin.flush(tableName);
+        IOUtils.closeStream(hBaseAdmin);
+      }
+    }
+    IOUtils.closeStream(hTable);
+    
+    //we have 4 kv in the memstore
+    List<KeyValue> results = new ArrayList<KeyValue>();
+    DirectScanner memScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, true);
+    while (memScanner.next(results));
+    for (KeyValue kv:results){
+      System.out.println(Bytes.toLong(kv.getValue()));
+    }
+    assertEquals(4, results.size());
+    System.out.println("==============");
+    
+    //we have 5 kv in the storefile
+    results.clear();
+    DirectScanner fileScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, true, false);
+    while (fileScanner.next(results));    
+    for (KeyValue kv:results){
+      System.out.println(Bytes.toLong(kv.getValue()));
+    }
+    assertEquals(5, results.size());
+    
+    //get all kv
+    System.out.println("==============");
+    results.clear();
+    DirectScanner directScanner = new DirectScanner(Bytes.toBytes(date), Bytes.toBytes(nextDate), tableName, false, false);
+    while (directScanner.next(results));
+    for (KeyValue kv:results){
+      System.out.println(Bytes.toLong(kv.getValue()));
+    }
     assertEquals(9, results.size());
   }
   

@@ -36,7 +36,7 @@
             </releases>
             <id>xamavenrepo</id>
             <name>xamavenrepo</name>
-            <url>http://xamavenrepo:8081/archiva/repository/internal</url>
+            <url>http://xamavenrepo:8044/archiva/repository/internal</url>
             <layout>default</layout>
         </repository>
         <repository>
@@ -65,7 +65,7 @@
 
         <dependency>
             <groupId>org.apache.hbase</groupId>
-            <artifactId>hbase-0.94.6-hadoop-2.0</artifactId>
+            <artifactId>hbase-0.94.6.xingcloud-hadoop-2.0</artifactId>
             <version>0.94.6</version>
         </dependency>
         

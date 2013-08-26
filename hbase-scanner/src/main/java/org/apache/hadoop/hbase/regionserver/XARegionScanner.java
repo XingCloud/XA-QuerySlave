@@ -56,7 +56,7 @@ public class XARegionScanner implements XAScanner{
     theNext = getLowest(MSNext, SSNext);
     
     if(ret != null){
-      results.add(ret);
+      results.add(ret); // todo one by one?
     }
     
     return ret != null;
@@ -90,7 +90,7 @@ public class XARegionScanner implements XAScanner{
       KeyValue kv = MSKVCache.poll();
       if(Bytes.compareTo(kv.getRow(), Bytes.toBytes("flush")) == 0){
         if(storesScanner != null){
-          storesScanner.updateScanner(kv.getFamily(), theNext); //todo
+          storesScanner.updateScanner(kv.getFamily(), theNext); //todo kv to seek
           if(SSNext == null){
             SSNext = getKVFromSS();
           }

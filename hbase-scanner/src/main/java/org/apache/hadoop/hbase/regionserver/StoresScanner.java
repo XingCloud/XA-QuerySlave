@@ -34,7 +34,7 @@ public class StoresScanner implements XAScanner {
   private static Logger LOG = LoggerFactory.getLogger(RegionScanner.class);
 
   private final String familyName = "val";
-  private final int batch = 1;//todo
+  private final int batch = 1000;//todo
 
   private Scan scan;
 
