@@ -211,18 +211,21 @@ public class DirectScannerTest {
     String date = "20130101";
     String nextDate = "20130102";
     String event = "visit.";
+    String cf = "val";
     for (int i = 0; i < count; i++) {
       long md5Uid = UidMappingUtil.getInstance().decorateWithMD5(i);
       byte[] rowKey = UidMappingUtil.getInstance().getRowKeyV2(date, event, md5Uid);
       Put put = new Put(rowKey);
       put.setWriteToWAL(false);
-      put.add("val".getBytes(), "val".getBytes(), System.currentTimeMillis(), Bytes.toBytes((long) i));
+      
+      put.add("val".getBytes(), cf.getBytes(), System.currentTimeMillis(), Bytes.toBytes((long) i));
       hTable.put(put);
       if(i==4){
         //flush memstore
         HBaseAdmin hBaseAdmin = new HBaseAdmin(conf);
         hBaseAdmin.flush(tableName);
         IOUtils.closeStream(hBaseAdmin);
+        cf = "val";
       }
     }
     IOUtils.closeStream(hTable);

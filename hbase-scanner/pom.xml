@@ -8,7 +8,7 @@
         <artifactId>parent</artifactId>
         <version>1.0</version>
     </parent>
-    <artifactId>hbase-scanner</artifactId>
+    <artifactId>direct-scanner</artifactId>
     <packaging>jar</packaging>
 
     <dependencies>

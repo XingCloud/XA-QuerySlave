@@ -56,7 +56,7 @@ public class XARegionScanner implements XAScanner{
     theNext = getLowest(MSNext, SSNext);
     
     if(ret != null){
-      results.add(ret); // todo one by one?
+      results.add(ret); // todo one by one? no problem, we have cache .
     }
     
     return ret != null;
@@ -108,7 +108,7 @@ public class XARegionScanner implements XAScanner{
     
     if(0 == SSKVCache.size()){
       List<KeyValue> results = new ArrayList<KeyValue>();
-      if(!storesScanner.next(results)){//todo when to stop
+      if(!storesScanner.next(results)){//todo when to stop, no problem, will not be invoked after returning null until flush.
 //        storesScanner.close();
 //        storesScanner = null;
       }
